@@ -8,6 +8,8 @@ Packages:
       - Localized settings, field names, and preview text for Playnite languages
       - RTL layout and mirrored hover placement
       - Dismiss the tooltip after hotkeys that leave the game tile
+      - Color customization options plus theme adaptations
+      - Full screen mode hide option
   - Version: 1.0.2
     RequiredApiVersion: 6.6.0
     ReleaseDate: 2026-05-28
