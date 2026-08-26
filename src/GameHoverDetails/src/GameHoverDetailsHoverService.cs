@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -78,6 +80,7 @@ namespace GameHoverDetails
         private string lastBuiltFieldsFingerprint;
         private HoverChromePalette palette;
         private bool settingsNotifyQueued;
+        private int hotkeyHideGeneration;
 
         public GameHoverDetailsHoverService(Window mainWindow, IPlayniteAPI playniteApi, GameHoverDetailsSettings settings)
         {
@@ -171,6 +174,7 @@ namespace GameHoverDetails
             showDelayTimer.Tick += ShowDelayTimerOnTick;
 
             mainWindow.PreviewMouseMove += MainWindowOnPreviewMouseMove;
+            mainWindow.PreviewKeyDown += MainWindowOnPreviewKeyDown;
             mainWindow.StateChanged += MainWindowOnStateChanged;
             mainWindow.Closed += MainWindowOnClosed;
             if (Application.Current != null)
@@ -208,8 +212,10 @@ namespace GameHoverDetails
             }
 
             mainWindow.PreviewMouseMove -= MainWindowOnPreviewMouseMove;
+            mainWindow.PreviewKeyDown -= MainWindowOnPreviewKeyDown;
             mainWindow.StateChanged -= MainWindowOnStateChanged;
             mainWindow.Closed -= MainWindowOnClosed;
+            hotkeyHideGeneration++;
             if (Application.Current != null)
             {
                 Application.Current.Deactivated -= ApplicationOnDeactivated;
@@ -285,6 +291,64 @@ namespace GameHoverDetails
 
             try
             {
+                hideDebounceTimer?.Stop();
+                HidePopup();
+            }
+            catch (Exception ex)
+            {
+                LatchBroken(ex);
+            }
+        }
+
+        private void MainWindowOnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (broken || e.IsRepeat || e.Key == Key.None)
+            {
+                return;
+            }
+
+            var popupOpen = popup != null && popup.IsOpen;
+            var showPending = pendingShowGame != null || (showDelayTimer != null && showDelayTimer.IsEnabled);
+            if (!popupOpen && !showPending)
+            {
+                return;
+            }
+
+            var generation = ++hotkeyHideGeneration;
+            dispatcher.BeginInvoke(
+                new Action(() => HidePopupIfPointerLeftGame(generation)),
+                DispatcherPriority.ContextIdle);
+        }
+
+        /// <summary>
+        /// After Playnite handles the key (F4/F9 overlays), hide only if the pointer is no longer on a game.
+        /// Still over a tile → keep the tooltip.
+        /// </summary>
+        private void HidePopupIfPointerLeftGame(int generation)
+        {
+            if (broken || !attached || generation != hotkeyHideGeneration)
+            {
+                return;
+            }
+
+            if (settings.IsHoverSuppressed())
+            {
+                hideDebounceTimer?.Stop();
+                HidePopup();
+                return;
+            }
+
+            try
+            {
+                var hit = Mouse.DirectlyOver as DependencyObject;
+                Game game;
+                FrameworkElement unused;
+                TryResolveGameAndAnchor(hit, playniteApi, out game, out unused);
+                if (game != null)
+                {
+                    return;
+                }
+
                 hideDebounceTimer?.Stop();
                 HidePopup();
             }
@@ -607,14 +671,14 @@ namespace GameHoverDetails
 
         /// <summary>
         /// Points are relative to the placement target's top-left (net462 CustomPopupPlacementCallback).
-        /// List view: below the row, left-aligned; if that does not fit on-screen, above the row, left-aligned.
-        /// Other views: prefer right of target, then left.
+        /// List view: below the row, start-aligned (left in LTR, right in RTL); fallback above the row.
+        /// Other views: prefer the end side of the target (right in LTR, left in RTL), then the start side.
         /// </summary>
         private CustomPopupPlacement[] PlacePopupForCurrentDesktopView(Size popupSize, Size targetSize, Point offset)
         {
             if (IsListViewDesktop())
             {
-                return PlacePopupListViewBottomThenTopLeft(popupSize, targetSize, offset);
+                return PlacePopupListViewBottomThenTopStart(popupSize, targetSize, offset);
             }
 
             return PlacePopupGridOrDefault(popupSize, targetSize, offset);
@@ -633,13 +697,23 @@ namespace GameHoverDetails
         }
 
         /// <summary>
-        /// List row: popup top-left at (0, rowHeight+gap) — left edges match, open downward; fallback above row.
+        /// List row: open downward with start edges aligned; fallback above the row.
         /// </summary>
-        private static CustomPopupPlacement[] PlacePopupListViewBottomThenTopLeft(Size popupSize, Size targetSize, Point offset)
+        private CustomPopupPlacement[] PlacePopupListViewBottomThenTopStart(Size popupSize, Size targetSize, Point offset)
         {
             var gap = PlacementGapDip;
-            var below = new Point(offset.X, targetSize.Height + gap + offset.Y);
-            var above = new Point(offset.X, -popupSize.Height - gap + offset.Y);
+            var popupW = popupSize.Width;
+            if (popupW < 8)
+            {
+                popupW = Math.Max(120, settings.HoverWidth);
+            }
+
+            // RTL target origin is top-right; -popupW aligns the popup's start (visual right) with the row.
+            var startX = HoverLoc.IsRightToLeftLayout(playniteApi, mainWindow)
+                ? -popupW + offset.X
+                : offset.X;
+            var below = new Point(startX, targetSize.Height + gap + offset.Y);
+            var above = new Point(startX, -popupSize.Height - gap + offset.Y);
             return new[]
             {
                 new CustomPopupPlacement(below, PopupPrimaryAxis.Vertical),
@@ -648,13 +722,54 @@ namespace GameHoverDetails
         }
 
         /// <summary>
-        /// Grid (and other) views: prefer right of target, then left.
+        /// Grid (and other) views: prefer the end side of the tile, then the start side.
+        /// Left-side math must use a real width — a 0-width callback places x≈0 and the panel grows over the tile.
         /// </summary>
-        private static CustomPopupPlacement[] PlacePopupGridOrDefault(Size popupSize, Size targetSize, Point offset)
+        private CustomPopupPlacement[] PlacePopupGridOrDefault(Size popupSize, Size targetSize, Point offset)
         {
             var gap = PlacementGapDip;
-            var right = new Point(targetSize.Width + gap + offset.X, offset.Y);
-            var left = new Point(-popupSize.Width - gap + offset.X, offset.Y);
+            var popupW = popupSize.Width;
+            if (popupW < 8)
+            {
+                popupW = Math.Max(120, settings.HoverWidth);
+            }
+
+            // LTR PlacementTarget origin is top-left. RTL targets (Hebrew UI) use top-right;
+            // -popupW-gap from that origin still overlaps the tile (runtime: popupX ≈ tileRight - popupW).
+            Point right;
+            Point left;
+            var rtl = HoverLoc.IsRightToLeftLayout(playniteApi, mainWindow);
+            if (rtl)
+            {
+                left = new Point(-targetSize.Width - popupW - gap + offset.X, offset.Y);
+                right = new Point(gap + offset.X, offset.Y);
+            }
+            else
+            {
+                right = new Point(targetSize.Width + gap + offset.X, offset.Y);
+                left = new Point(-popupW - gap + offset.X, offset.Y);
+            }
+            // #region agent log
+            AgentLog("H1", "PlacePopupGridOrDefault", "custom placement candidates",
+                "{\"rtl\":" + (rtl ? "true" : "false")
+                + ",\"popupW\":" + popupW.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"rawPopupW\":" + popupSize.Width.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"targetW\":" + targetSize.Width.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"targetH\":" + targetSize.Height.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"leftX\":" + left.X.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"rightX\":" + right.X.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"hOff\":" + (popup != null ? popup.HorizontalOffset.ToString("0.##", CultureInfo.InvariantCulture) : "0")
+                + ",\"pref\":\"" + (rtl ? "left" : "right") + "\"}");
+            // #endregion
+            if (rtl)
+            {
+                return new[]
+                {
+                    new CustomPopupPlacement(left, PopupPrimaryAxis.Horizontal),
+                    new CustomPopupPlacement(right, PopupPrimaryAxis.Horizontal)
+                };
+            }
+
             return new[]
             {
                 new CustomPopupPlacement(right, PopupPrimaryAxis.Horizontal),
@@ -736,10 +851,27 @@ namespace GameHoverDetails
 
             if (anchor != null && anchor.IsVisible)
             {
+                var sameAnchorContinue = sameGameContinue
+                    && popup.IsOpen
+                    && ReferenceEquals(popup.PlacementTarget, anchor)
+                    && popup.Placement == PlacementMode.Custom;
                 popup.PlacementTarget = anchor;
                 popup.Placement = PlacementMode.Custom;
-                popup.HorizontalOffset = 0;
-                popup.VerticalOffset = 0;
+                // #region agent log
+                AgentLog("H2", "ShowOrUpdatePopup", "reset offset before custom place",
+                    "{\"sameGameContinue\":" + (sameGameContinue ? "true" : "false")
+                    + ",\"sameAnchorContinue\":" + (sameAnchorContinue ? "true" : "false")
+                    + ",\"wasOpen\":" + (wasOpen ? "true" : "false")
+                    + ",\"prevHOff\":" + popup.HorizontalOffset.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"prevVOff\":" + popup.VerticalOffset.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"gen\":" + (layoutInvokeGeneration + 1).ToString(CultureInfo.InvariantCulture) + "}");
+                // #endregion
+                if (!sameAnchorContinue)
+                {
+                    popup.HorizontalOffset = 0;
+                    popup.VerticalOffset = 0;
+                }
+
                 popup.CustomPopupPlacementCallback = PlacePopupForCurrentDesktopView;
             }
             else
@@ -788,6 +920,17 @@ namespace GameHoverDetails
 
             try
             {
+                popup.Child.UpdateLayout();
+                // #region agent log
+                AgentLog("H6", "AfterPopupLayout", "layout pass",
+                    "{\"gen\":" + invokedGeneration.ToString(CultureInfo.InvariantCulture)
+                    + ",\"runAnim\":" + (runEnterAnimation ? "true" : "false")
+                    + ",\"hOff\":" + popup.HorizontalOffset.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"vOff\":" + popup.VerticalOffset.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"childW\":" + popup.Child.RenderSize.Width.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"rtl\":" + (HoverLoc.IsRightToLeftLayout(playniteApi, mainWindow) ? "true" : "false") + "}");
+                // #endregion
+                NudgeRtlPopupOutsideAnchor();
                 ClampPopupToVirtualScreen();
                 UpdateFrostBackdrop();
                 if (!runEnterAnimation)
@@ -836,6 +979,133 @@ namespace GameHoverDetails
             enterStoryboard.Begin();
         }
 
+        /// <summary>
+        /// RTL side placement: put the panel fully left of the tile, top-aligned. WPF custom placement
+        /// often reports width 0 on first open, which parks the HWND on the tile.
+        /// </summary>
+        private void NudgeRtlPopupOutsideAnchor()
+        {
+            if (popup?.Child == null || lastShownAnchor == null || popup.Placement != PlacementMode.Custom)
+            {
+                // #region agent log
+                AgentLog("H4", "NudgeRtlPopupOutsideAnchor", "skip no popup/anchor/custom",
+                    "{\"hasChild\":" + (popup?.Child != null ? "true" : "false")
+                    + ",\"hasAnchor\":" + (lastShownAnchor != null ? "true" : "false")
+                    + ",\"placement\":\"" + (popup != null ? popup.Placement.ToString() : "null") + "\"}");
+                // #endregion
+                return;
+            }
+
+            if (IsListViewDesktop() || !HoverLoc.IsRightToLeftLayout(playniteApi, mainWindow))
+            {
+                // #region agent log
+                AgentLog("H4", "NudgeRtlPopupOutsideAnchor", "skip list or not rtl",
+                    "{\"list\":" + (IsListViewDesktop() ? "true" : "false")
+                    + ",\"rtl\":" + (HoverLoc.IsRightToLeftLayout(playniteApi, mainWindow) ? "true" : "false") + "}");
+                // #endregion
+                return;
+            }
+
+            var child = popup.Child;
+            var width = child.RenderSize.Width;
+            var height = child.RenderSize.Height;
+            var tileW = lastShownAnchor.ActualWidth;
+            var tileH = lastShownAnchor.ActualHeight;
+            if (width < 8 || height < 8 || tileW < 8 || tileH < 8)
+            {
+                // #region agent log
+                AgentLog("H4", "NudgeRtlPopupOutsideAnchor", "skip tiny size",
+                    "{\"w\":" + width.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"h\":" + height.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"tileW\":" + tileW.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"tileH\":" + tileH.ToString("0.##", CultureInfo.InvariantCulture) + "}");
+                // #endregion
+                return;
+            }
+
+            var source = PresentationSource.FromVisual(child) as HwndSource;
+            if (source?.CompositionTarget == null)
+            {
+                // #region agent log
+                AgentLog("H4", "NudgeRtlPopupOutsideAnchor", "skip no hwnd", "{}");
+                // #endregion
+                return;
+            }
+
+            var fromDevice = source.CompositionTarget.TransformFromDevice;
+            Point popupA;
+            Point popupB;
+            Point tileA;
+            Point tileB;
+            var popupRect = GetVisualScreenRectDip(child, width, height, fromDevice, out popupA, out popupB);
+            var tileRect = GetVisualScreenRectDip(lastShownAnchor, tileW, tileH, fromDevice, out tileA, out tileB);
+            if (popupRect.Width < 1 || tileRect.Width < 1)
+            {
+                return;
+            }
+
+            const double margin = 8;
+            var vsLeft = SystemParameters.VirtualScreenLeft;
+            var vsRight = vsLeft + SystemParameters.VirtualScreenWidth;
+            var gap = PlacementGapDip;
+
+            var desiredLeft = tileRect.Left - popupRect.Width - gap;
+            if (desiredLeft < vsLeft + margin)
+            {
+                desiredLeft = tileRect.Right + gap;
+                if (desiredLeft + popupRect.Width > vsRight - margin)
+                {
+                    desiredLeft = vsRight - margin - popupRect.Width;
+                }
+            }
+
+            var desiredTop = tileRect.Top;
+            var deltaX = desiredLeft - popupRect.X;
+            var deltaY = desiredTop - popupRect.Y;
+            if (Math.Abs(deltaX) < 0.5 && Math.Abs(deltaY) < 0.5)
+            {
+                // #region agent log
+                AgentLog("H3", "NudgeRtlPopupOutsideAnchor", "already aligned",
+                    "{\"popupX\":" + popupRect.X.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"tileX\":" + tileRect.X.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"desiredLeft\":" + desiredLeft.ToString("0.##", CultureInfo.InvariantCulture)
+                    + ",\"overlaps\":" + (popupRect.IntersectsWith(tileRect) ? "true" : "false") + "}");
+                // #endregion
+                return;
+            }
+
+            // #region agent log
+            AgentLog("H3", "NudgeRtlPopupOutsideAnchor", "nudge apply",
+                "{\"popupX\":" + popupRect.X.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"popupY\":" + popupRect.Y.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"popupW\":" + popupRect.Width.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"popupH\":" + popupRect.Height.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"tileX\":" + tileRect.X.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"tileY\":" + tileRect.Y.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"tileW\":" + tileRect.Width.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"tileH\":" + tileRect.Height.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"popupA\":\"" + popupA.X.ToString("0.##", CultureInfo.InvariantCulture) + "," + popupA.Y.ToString("0.##", CultureInfo.InvariantCulture) + "\""
+                + ",\"popupB\":\"" + popupB.X.ToString("0.##", CultureInfo.InvariantCulture) + "," + popupB.Y.ToString("0.##", CultureInfo.InvariantCulture) + "\""
+                + ",\"tileA\":\"" + tileA.X.ToString("0.##", CultureInfo.InvariantCulture) + "," + tileA.Y.ToString("0.##", CultureInfo.InvariantCulture) + "\""
+                + ",\"tileB\":\"" + tileB.X.ToString("0.##", CultureInfo.InvariantCulture) + "," + tileB.Y.ToString("0.##", CultureInfo.InvariantCulture) + "\""
+                + ",\"desiredLeft\":" + desiredLeft.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"deltaX\":" + deltaX.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"deltaY\":" + deltaY.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"hOffBefore\":" + popup.HorizontalOffset.ToString("0.##", CultureInfo.InvariantCulture)
+                + ",\"overlaps\":" + (popupRect.IntersectsWith(tileRect) ? "true" : "false") + "}");
+            // #endregion
+            // Offset apply removed: it fought ShowOrUpdatePopup's offset reset (jumping). Placement math is the fix.
+        }
+
+        private static Rect GetVisualScreenRectDip(Visual visual, double layoutWidth, double layoutHeight, System.Windows.Media.Matrix fromDevice, out Point a, out Point b)
+        {
+            a = fromDevice.Transform(visual.PointToScreen(new Point(0, 0)));
+            b = fromDevice.Transform(visual.PointToScreen(new Point(layoutWidth, layoutHeight)));
+            var x1 = Math.Min(a.X, b.X);
+            var y1 = Math.Min(a.Y, b.Y);
+            return new Rect(x1, y1, Math.Abs(b.X - a.X), Math.Abs(b.Y - a.Y));
+        }
+
         private void ClampPopupToVirtualScreen()
         {
             if (popup?.Child == null || !popup.IsOpen)
@@ -875,15 +1145,19 @@ namespace GameHoverDetails
 
                 var deltaX = 0.0;
                 var deltaY = 0.0;
+                var customSidePlacement = popup.Placement == PlacementMode.Custom;
 
-                if (brDip.X > vsRight - margin)
+                if (!customSidePlacement)
                 {
-                    deltaX -= brDip.X - (vsRight - margin);
-                }
+                    if (brDip.X > vsRight - margin)
+                    {
+                        deltaX -= brDip.X - (vsRight - margin);
+                    }
 
-                if (tlDip.X + deltaX < vsLeft + margin)
-                {
-                    deltaX += vsLeft + margin - tlDip.X - deltaX;
+                    if (tlDip.X + deltaX < vsLeft + margin)
+                    {
+                        deltaX += vsLeft + margin - tlDip.X - deltaX;
+                    }
                 }
 
                 if (brDip.Y > vsBottom - margin)
@@ -957,6 +1231,7 @@ namespace GameHoverDetails
                 Foreground = Palette.GlyphChipGlyph,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                FlowDirection = FlowDirection.LeftToRight,
                 IsHitTestVisible = false
             };
 
@@ -969,6 +1244,7 @@ namespace GameHoverDetails
                 Child = glyphTb,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Left,
+                FlowDirection = FlowDirection.LeftToRight,
                 IsHitTestVisible = false
             };
         }
@@ -1301,6 +1577,7 @@ namespace GameHoverDetails
                 RenderTransform = chromeFlyTransform,
                 RenderTransformOrigin = new Point(0, 0)
             };
+            ApplyChromeFlowDirection();
             chromeRoot.SizeChanged += ChromeRootOnSizeChanged;
 
             popup = new Popup
@@ -1479,7 +1756,52 @@ namespace GameHoverDetails
         {
             palette = HoverChromePalette.Resolve(settings);
             HoverChromePalette.ApplyToChromeBorder(chromeBorder, settings);
+            ApplyChromeFlowDirection();
             UpdateFrostBackdrop();
         }
+
+        private void ApplyChromeFlowDirection()
+        {
+            var flow = HoverLoc.LayoutFlow(playniteApi, mainWindow);
+            // Popup HWND placement is physical (top-left origin). RTL on Popup mirrors
+            // CustomPopupPlacementCallback points and drops the panel on the tile.
+            if (popup != null)
+            {
+                popup.FlowDirection = FlowDirection.LeftToRight;
+            }
+
+            if (chromeRoot != null)
+            {
+                chromeRoot.FlowDirection = flow;
+            }
+
+            // #region agent log
+            AgentLog("H5", "ApplyChromeFlowDirection", "flow applied",
+                "{\"layoutFlow\":\"" + flow + "\",\"popupFd\":\"" + (popup != null ? popup.FlowDirection.ToString() : "null")
+                + "\",\"chromeFd\":\"" + (chromeRoot != null ? chromeRoot.FlowDirection.ToString() : "null") + "\"}");
+            // #endregion
+
+            if (contentStack != null)
+            {
+                contentStack.FlowDirection = flow;
+            }
+        }
+
+        // #region agent log
+        private static void AgentLog(string hypothesisId, string location, string message, string dataJson)
+        {
+            try
+            {
+                var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var line = "{\"sessionId\":\"848814\",\"runId\":\"post-fix\",\"hypothesisId\":\"" + hypothesisId
+                    + "\",\"location\":\"" + location + "\",\"message\":\"" + message
+                    + "\",\"data\":" + dataJson + ",\"timestamp\":" + ts.ToString(CultureInfo.InvariantCulture) + "}\n";
+                File.AppendAllText(@"E:\Projects\Playnite Extensions\debug-848814.log", line);
+            }
+            catch
+            {
+            }
+        }
+        // #endregion
     }
 }

@@ -58,6 +58,7 @@ namespace GameHoverDetails
             block.MaxHeight = block.LineHeight * MaxValueLines;
             block.ClipToBounds = true;
             block.IsHitTestVisible = true;
+            block.FlowDirection = HoverLoc.LayoutFlow();
         }
 
         public static void ConfigureHeaderTextBlock(TextBlock header, double innerMax)
@@ -68,6 +69,7 @@ namespace GameHoverDetails
             header.TextTrimming = TextTrimming.CharacterEllipsis;
             header.ClipToBounds = true;
             header.MaxWidth = innerMax;
+            header.FlowDirection = HoverLoc.LayoutFlow();
         }
 
         public static void ConfigureFieldLabelTextBlock(TextBlock label, double innerMax)
@@ -89,6 +91,7 @@ namespace GameHoverDetails
             label.TextTrimming = TextTrimming.CharacterEllipsis;
             label.ClipToBounds = true;
             label.MaxWidth = innerMax;
+            label.FlowDirection = HoverLoc.LayoutFlow();
             Typography.SetCapitals(label, FontCapitals.AllSmallCaps);
         }
 
@@ -171,8 +174,8 @@ namespace GameHoverDetails
 #pragma warning disable 618
             var ft = new FormattedText(
                 text,
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
+                CultureInfo.CurrentUICulture,
+                HoverLoc.LayoutFlow(),
                 typeface,
                 emSize,
                 Brushes.Black);

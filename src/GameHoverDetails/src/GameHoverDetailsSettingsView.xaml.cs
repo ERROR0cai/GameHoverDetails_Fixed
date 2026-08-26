@@ -174,6 +174,7 @@ namespace GameHoverDetails
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
+            ApplyLayoutFlow();
             if (FieldsList != null && !fieldsListWheelHooked)
             {
                 FieldsList.PreviewMouseWheel += FieldsList_PreviewMouseWheel;
@@ -181,6 +182,26 @@ namespace GameHoverDetails
             }
 
             TryAttachSettings();
+        }
+
+        private void ApplyLayoutFlow()
+        {
+            var api = (DataContext as GameHoverDetailsSettings)?.TryGetPlayniteApi();
+            var flow = HoverLoc.LayoutFlow(api, this);
+            FlowDirection = flow;
+            if (AddFieldCombo != null)
+            {
+                AddFieldCombo.HorizontalContentAlignment = flow == FlowDirection.RightToLeft
+                    ? HorizontalAlignment.Right
+                    : HorizontalAlignment.Left;
+            }
+            if (PreviewChromeBorder != null)
+            {
+                PreviewChromeBorder.FlowDirection = flow;
+                PreviewChromeBorder.HorizontalAlignment = flow == FlowDirection.RightToLeft
+                    ? HorizontalAlignment.Right
+                    : HorizontalAlignment.Left;
+            }
         }
 
         private void UserControl_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -210,6 +231,7 @@ namespace GameHoverDetails
                 s.ApplyThemeColorsToPickers();
             }
 
+            ApplyLayoutFlow();
             TryPickPreviewSampleGame();
             RefreshFieldsList();
             RefreshAddCombo();

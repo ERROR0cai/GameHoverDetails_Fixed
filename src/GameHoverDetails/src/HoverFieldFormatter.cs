@@ -15,7 +15,7 @@ namespace GameHoverDetails
         {
             if (game == null || string.IsNullOrEmpty(key))
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             try
@@ -23,9 +23,9 @@ namespace GameHoverDetails
                 switch (key)
                 {
                     case "Name":
-                        return game.Name ?? "—";
+                        return game.Name ?? HoverLoc.Empty;
                     case "Description":
-                        return string.IsNullOrWhiteSpace(game.Description) ? "—" : game.Description;
+                        return string.IsNullOrWhiteSpace(game.Description) ? HoverLoc.Empty : game.Description;
                     case "Platform":
                         return JoinNames(game.Platforms);
                     case "Genre":
@@ -47,29 +47,29 @@ namespace GameHoverDetails
                     case "AgeRating":
                         return JoinNames(game.AgeRatings);
                     case "Version":
-                        return string.IsNullOrWhiteSpace(game.Version) ? "—" : game.Version;
+                        return string.IsNullOrWhiteSpace(game.Version) ? HoverLoc.Empty : game.Version;
                     case "Notes":
-                        return string.IsNullOrWhiteSpace(game.Notes) ? "—" : game.Notes;
+                        return string.IsNullOrWhiteSpace(game.Notes) ? HoverLoc.Empty : game.Notes;
                     case "InstallationFolder":
-                        return string.IsNullOrWhiteSpace(game.InstallDirectory) ? "—" : game.InstallDirectory;
+                        return string.IsNullOrWhiteSpace(game.InstallDirectory) ? HoverLoc.Empty : game.InstallDirectory;
                     case "InstallSize":
                         return FormatInstallSize(game.InstallSize);
                     case "ReleaseDate":
                         return FormatReleaseDateLong(game.ReleaseDate);
                     case "DateAdded":
                         return game.Added == null
-                            ? "—"
+                            ? HoverLoc.Empty
                             : FormatDateNoWeekday(game.Added.Value.ToLocalTime());
                     case "TimePlayed":
                         return FormatPlaytime(game.Playtime);
                     case "RecentActivity":
                         return game.RecentActivity == null
-                            ? "—"
+                            ? HoverLoc.Empty
                             : FormatDateNoWeekday(game.RecentActivity.Value.ToLocalTime());
                     case "LastPlayed":
                         return FormatLastPlayedDate(game.LastActivity);
                     case "CompletionStatus":
-                        return game.CompletionStatus?.Name ?? "—";
+                        return game.CompletionStatus?.Name ?? HoverLoc.Empty;
                     case "UserScore":
                         return FormatNullableScore(game.UserScore);
                     case "CriticScore":
@@ -77,7 +77,7 @@ namespace GameHoverDetails
                     case "CommunityScore":
                         return FormatNullableScore(game.CommunityScore);
                     case "Source":
-                        return game.Source?.Name ?? "—";
+                        return game.Source?.Name ?? HoverLoc.Empty;
                     case "Library":
                         return FormatLibrary(game, api);
                     case "Links":
@@ -87,12 +87,12 @@ namespace GameHoverDetails
                     case "BackgroundImage":
                         return string.Empty;
                     default:
-                        return "—";
+                        return HoverLoc.Empty;
                 }
             }
             catch
             {
-                return "—";
+                return HoverLoc.Empty;
             }
         }
 
@@ -128,7 +128,7 @@ namespace GameHoverDetails
                 // ignore
             }
 
-            return "Unknown library";
+            return HoverLoc.Get("LOCGameHoverDetails_Value_UnknownLibrary", "Unknown library");
         }
 
         /// <summary>Month, day, and year in current culture without weekday (e.g. April 15, 2026).</summary>
@@ -141,13 +141,13 @@ namespace GameHoverDetails
         {
             if (releaseDate == null)
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             var rd = releaseDate.Value;
             if (rd.Equals(ReleaseDate.Empty))
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             var culture = CultureInfo.CurrentCulture;
@@ -177,14 +177,14 @@ namespace GameHoverDetails
         {
             if (lastActivityUtc == null)
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             var local = lastActivityUtc.Value.ToLocalTime();
             var now = DateTime.Now;
             if (local > now)
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             var elapsed = now - local;
@@ -193,7 +193,10 @@ namespace GameHoverDetails
                 return FormatDateNoWeekday(local);
             }
 
-            return FormatRelativeElapsed(elapsed) + " ago";
+            return HoverLoc.Format(
+                "LOCGameHoverDetails_Value_RelativeAgo",
+                "{0} ago",
+                FormatRelativeElapsed(elapsed));
         }
 
         /// <summary>Relative unit phrase for Last Played within the past 30 days (e.g. "2m", "3h").</summary>
@@ -202,36 +205,36 @@ namespace GameHoverDetails
             var totalSeconds = (int)elapsed.TotalSeconds;
             if (totalSeconds < 60)
             {
-                return Math.Max(1, totalSeconds) + "s";
+                return Math.Max(1, totalSeconds) + HoverLoc.Get("LOCGameHoverDetails_Value_UnitSec", "s");
             }
 
             var totalMinutes = (int)elapsed.TotalMinutes;
             if (totalMinutes < 60)
             {
-                return totalMinutes + "m";
+                return totalMinutes + HoverLoc.Get("LOCGameHoverDetails_Value_UnitMin", "m");
             }
 
             var totalHours = (int)elapsed.TotalHours;
             if (totalHours < 24)
             {
-                return totalHours + "h";
+                return totalHours + HoverLoc.Get("LOCGameHoverDetails_Value_UnitHour", "h");
             }
 
             var totalDays = (int)elapsed.TotalDays;
             if (totalDays < 7)
             {
-                return totalDays + "d";
+                return totalDays + HoverLoc.Get("LOCGameHoverDetails_Value_UnitDay", "d");
             }
 
             var totalWeeks = totalDays / 7;
-            return totalWeeks + "w";
+            return totalWeeks + HoverLoc.Get("LOCGameHoverDetails_Value_UnitWeek", "w");
         }
 
         private static string FormatLinks(Game game)
         {
             if (game.Links == null || game.Links.Count == 0)
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             var sb = new StringBuilder();
@@ -242,7 +245,9 @@ namespace GameHoverDetails
                     continue;
                 }
 
-                var name = string.IsNullOrWhiteSpace(link.Name) ? "Link" : link.Name;
+                var name = string.IsNullOrWhiteSpace(link.Name)
+                    ? HoverLoc.Get("LOCGameHoverDetails_Value_Link", "Link")
+                    : link.Name;
                 var url = link.Url ?? "";
                 if (sb.Length > 0)
                 {
@@ -252,19 +257,19 @@ namespace GameHoverDetails
                 sb.Append(name).Append(": ").Append(url);
             }
 
-            return sb.Length == 0 ? "—" : sb.ToString();
+            return sb.Length == 0 ? HoverLoc.Empty : sb.ToString();
         }
 
         private static string FormatNullableScore(int? score)
         {
-            return score == null || score.Value <= 0 ? "—" : score.Value.ToString(CultureInfo.CurrentCulture);
+            return score == null || score.Value <= 0 ? HoverLoc.Empty : score.Value.ToString(CultureInfo.CurrentCulture);
         }
 
         private static string FormatInstallSize(ulong? bytes)
         {
             if (bytes == null || bytes.Value == 0UL)
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             var b = (double)bytes.Value;
@@ -283,7 +288,7 @@ namespace GameHoverDetails
         {
             if (playtimeSeconds == 0UL)
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             var ts = TimeSpan.FromSeconds(playtimeSeconds);
@@ -304,7 +309,7 @@ namespace GameHoverDetails
         {
             if (items == null)
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             var names = new List<string>();
@@ -323,7 +328,7 @@ namespace GameHoverDetails
                 }
             }
 
-            return names.Count == 0 ? "—" : string.Join(", ", names.Distinct());
+            return names.Count == 0 ? HoverLoc.Empty : string.Join(", ", names.Distinct());
         }
     }
 }

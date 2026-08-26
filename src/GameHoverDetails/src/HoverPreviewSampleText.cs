@@ -10,76 +10,110 @@ namespace GameHoverDetails
         {
             if (string.IsNullOrEmpty(key))
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
+            string fallback;
             switch (key)
             {
                 case "Name":
-                    return "Sample Game";
+                    fallback = "Sample Game";
+                    break;
                 case "Description":
-                    return "Example description text for the hover preview.";
+                    fallback = "Example description text for the hover preview.";
+                    break;
                 case "Platform":
-                    return "Windows";
+                    fallback = "Windows";
+                    break;
                 case "Genre":
-                    return "Action, RPG";
+                    fallback = "Action, RPG";
+                    break;
                 case "Developer":
-                    return "Example Studio";
+                    fallback = "Example Studio";
+                    break;
                 case "Publisher":
-                    return "Blizzard Entertainment";
+                    fallback = "Blizzard Entertainment";
+                    break;
                 case "Category":
-                    return "Installed";
+                    fallback = "Installed";
+                    break;
                 case "Tags":
-                    return "Single-player, Steam";
+                    fallback = "Single-player, Steam";
+                    break;
                 case "Features":
-                    return "Achievements, Cloud saves";
+                    fallback = "Achievements, Cloud saves";
+                    break;
                 case "Series":
-                    return "Sample Series";
+                    fallback = "Sample Series";
+                    break;
                 case "Region":
-                    return "Worldwide";
+                    fallback = "Worldwide";
+                    break;
                 case "AgeRating":
-                    return "Teen";
+                    fallback = "Teen";
+                    break;
                 case "Version":
-                    return "1.0.0";
+                    fallback = "1.0.0";
+                    break;
                 case "Notes":
-                    return "Your notes appear here.";
+                    fallback = "Your notes appear here.";
+                    break;
                 case "InstallationFolder":
-                    return @"C:\Games\Sample";
+                    fallback = @"C:\Games\Sample";
+                    break;
                 case "InstallSize":
-                    return "42.5 GB";
+                    fallback = "42.5 GB";
+                    break;
                 case "ReleaseDate":
-                    return "April 15, 2020";
+                    fallback = "April 15, 2020";
+                    break;
                 case "DateAdded":
-                    return "January 1, 2025";
+                    fallback = "January 1, 2025";
+                    break;
                 case "TimePlayed":
-                    return "12h 30m";
+                    fallback = "12h 30m";
+                    break;
                 case "RecentActivity":
-                    return "April 10, 2026";
+                    fallback = "April 10, 2026";
+                    break;
                 case "LastPlayed":
-                    return "2h ago";
+                    fallback = "2h ago";
+                    break;
                 case "CompletionStatus":
-                    return "Playing";
+                    fallback = "Playing";
+                    break;
                 case "UserScore":
-                    return "85";
+                    fallback = "85";
+                    break;
                 case "CriticScore":
-                    return "82";
+                    fallback = "82";
+                    break;
                 case "CommunityScore":
-                    return "8.1";
+                    fallback = "8.1";
+                    break;
                 case "Source":
-                    return "Steam";
+                    fallback = "Steam";
+                    break;
                 case "Library":
-                    return "Steam library";
+                    fallback = "Steam library";
+                    break;
                 case "Links":
-                    return "Store page";
+                    fallback = "Store page";
+                    break;
                 case "Icon":
-                    return "(game icon)";
+                    fallback = "(game icon)";
+                    break;
                 case "CoverImage":
-                    return "(cover image)";
+                    fallback = "(cover image)";
+                    break;
                 case "BackgroundImage":
-                    return "(background image)";
+                    fallback = "(background image)";
+                    break;
                 default:
-                    return "—";
+                    return HoverLoc.Empty;
             }
+
+            return HoverLoc.Get("LOCGameHoverDetails_PreviewSample_" + key, fallback);
         }
 
         /// <summary>Plain one-block preview string from formatted hover text (strips HTML for description).</summary>
@@ -87,19 +121,19 @@ namespace GameHoverDetails
         {
             if (string.IsNullOrWhiteSpace(formatted))
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
-            if (formatted == "—")
+            if (formatted == HoverLoc.Empty || formatted == "—")
             {
-                return "—";
+                return HoverLoc.Empty;
             }
 
             if (key == "Description")
             {
                 var plain = WebUtility.HtmlDecode(Regex.Replace(formatted, "<[^>]+>", " "));
                 plain = Regex.Replace(plain, @"\s+", " ").Trim();
-                return string.IsNullOrEmpty(plain) ? "—" : plain;
+                return string.IsNullOrEmpty(plain) ? HoverLoc.Empty : plain;
             }
 
             return formatted;

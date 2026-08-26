@@ -116,7 +116,13 @@ namespace GameHoverDetails
         public static string GetDisplayName(string key)
         {
             var d = All.FirstOrDefault(x => x.Key == key);
-            return d?.DisplayName ?? key ?? string.Empty;
+            var fallback = d?.DisplayName ?? key ?? string.Empty;
+            if (string.IsNullOrEmpty(key))
+            {
+                return fallback;
+            }
+
+            return HoverLoc.Get("LOCGameHoverDetails_Field_" + key, fallback);
         }
 
         /// <summary>Single Phosphor Regular PUA glyph (@phosphor-icons/web 2.1.2) for settings list / Add field menu / hover chips.</summary>
