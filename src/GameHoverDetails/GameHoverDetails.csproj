@@ -3,6 +3,7 @@
     <TargetFramework>net462</TargetFramework>
     <OutputType>Library</OutputType>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <RootNamespace>GameHoverDetails</RootNamespace>
     <AssemblyName>GameHoverDetails</AssemblyName>
@@ -21,6 +22,14 @@
     </None>
     <None Include="info\icon.png">
       <Link>icon.png</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="fonts\LICENSE">
+      <Link>fonts\LICENSE</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="fonts\Phosphor.ttf">
+      <Link>fonts\Phosphor.ttf</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

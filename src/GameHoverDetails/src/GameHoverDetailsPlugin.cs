@@ -46,9 +46,16 @@ namespace GameHoverDetails
                 e.PropertyName == nameof(GameHoverDetailsSettings.ShowDelayMs) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverDisabled) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverDetailsEnabled) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverDisabledInFullscreen) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverDetailsEnabledInFullscreen) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldTitlesInHover) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitlesInHover) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.ShowFieldInlineIconsInHover) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.UseThemeChrome) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundHex) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBorderHex) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeIconBackgroundHex) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundOpacity) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldBlockSpacingDip) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.SelectedFieldKeys) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.DisabledFieldKeysOrder) ||

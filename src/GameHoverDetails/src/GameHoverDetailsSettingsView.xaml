@@ -3,13 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:GameHoverDetails"
              mc:Ignorable="d"
              d:DesignHeight="520" d:DesignWidth="760"
              DataContextChanged="UserControl_DataContextChanged"
              Loaded="UserControl_Loaded"
              Unloaded="UserControl_Unloaded">
     <UserControl.Resources>
-        <FontFamily x:Key="HoverFieldIconFont">Segoe MDL2 Assets</FontFamily>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <Style x:Key="HoverPreviewFieldLabel" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Normal" />
@@ -48,6 +48,11 @@
                           Foreground="{DynamicResource TextBrush}"
                           Margin="0,0,0,10"
                           IsChecked="{Binding HoverDetailsEnabled, Mode=TwoWay}" />
+                <CheckBox Content="Show hover in Fullscreen mode"
+                          Foreground="{DynamicResource TextBrush}"
+                          Margin="0,0,0,10"
+                          IsEnabled="{Binding HoverDetailsEnabled}"
+                          IsChecked="{Binding HoverDetailsEnabledInFullscreen, Mode=TwoWay}" />
 
                 <Label Content="Display:"
                        Margin="0,36,0,4"
@@ -66,6 +71,110 @@
                           Content="Show icons"
                           Foreground="{DynamicResource TextBrush}"
                           IsChecked="{Binding ShowFieldInlineIconsInHover, Mode=TwoWay}" />
+
+                <Label Content="Appearance:"
+                       Margin="0,36,0,4"
+                       Foreground="{DynamicResource TextBrush}" />
+                <TextBlock Margin="0,0,0,10"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextBrush}"
+                           Opacity="0.75"
+                           FontSize="11.5"
+                           LineHeight="16"
+                           Text="When checked, colors track the Playnite theme (dark accent fill, accent icons, theme text). Edit a color or reset to switch to custom. Opacity below 100% frosts the library behind the panel." />
+                <CheckBox Content="Use Playnite theme colors"
+                          Foreground="{DynamicResource TextBrush}"
+                          IsChecked="{Binding UseThemeChrome, Mode=TwoWay}" />
+                <StackPanel Margin="0,12,0,0">
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="100" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   Text="Background" />
+                        <Button Grid.Column="1"
+                                Width="32"
+                                Height="22"
+                                Margin="8,0,8,0"
+                                Padding="0"
+                                ToolTip="Pick background color"
+                                Click="BackgroundSwatch_Click"
+                                Background="{Binding ChromeBackgroundSwatchBrush}"
+                                BorderBrush="#808080"
+                                BorderThickness="1" />
+                        <TextBox Grid.Column="2"
+                                 VerticalContentAlignment="Center"
+                                 Foreground="{DynamicResource TextBrush}"
+                                 Text="{Binding HoverChromeBackgroundHex, UpdateSourceTrigger=LostFocus}" />
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="100" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   Text="Border" />
+                        <Button Grid.Column="1"
+                                Width="32"
+                                Height="22"
+                                Margin="8,0,8,0"
+                                Padding="0"
+                                ToolTip="Pick border color"
+                                Click="BorderSwatch_Click"
+                                Background="{Binding ChromeBorderSwatchBrush}"
+                                BorderBrush="#808080"
+                                BorderThickness="1" />
+                        <TextBox Grid.Column="2"
+                                 VerticalContentAlignment="Center"
+                                 Foreground="{DynamicResource TextBrush}"
+                                 Text="{Binding HoverChromeBorderHex, UpdateSourceTrigger=LostFocus}" />
+                    </Grid>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="100" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   Text="Icon background" />
+                        <Button Grid.Column="1"
+                                Width="32"
+                                Height="22"
+                                Margin="8,0,8,0"
+                                Padding="0"
+                                ToolTip="Pick icon background color"
+                                Click="IconBackgroundSwatch_Click"
+                                Background="{Binding ChromeIconBackgroundSwatchBrush}"
+                                BorderBrush="#808080"
+                                BorderThickness="1" />
+                        <TextBox Grid.Column="2"
+                                 VerticalContentAlignment="Center"
+                                 Foreground="{DynamicResource TextBrush}"
+                                 Text="{Binding HoverChromeIconBackgroundHex, UpdateSourceTrigger=LostFocus}" />
+                    </Grid>
+                    <Button Margin="0,8,0,0"
+                            HorizontalAlignment="Left"
+                            Padding="12,4"
+                            Content="Reset to default colors"
+                            Click="ResetChromeColors_Click" />
+                </StackPanel>
+                <Label Margin="0,16,0,4"
+                       Content="Background opacity"
+                       Foreground="{DynamicResource TextBrush}" />
+                <Slider Minimum="0"
+                        Maximum="100"
+                        TickFrequency="1"
+                        IsSnapToTickEnabled="True"
+                        Value="{Binding HoverChromeBackgroundOpacity, Mode=TwoWay}" />
+                <TextBlock Margin="0,4,0,0"
+                           Foreground="{DynamicResource TextBrush}"
+                           Text="{Binding HoverChromeBackgroundOpacity, StringFormat='{}{0}%'}" />
 
                 <Label Margin="0,40,0,4"
                        Content="Timing &amp; size"
@@ -160,7 +269,7 @@
                                         <TextBlock Grid.Column="0"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
-                                                   FontFamily="{StaticResource HoverFieldIconFont}"
+                                                   FontFamily="{x:Static local:HoverFieldCatalog.GlyphFontFamily}"
                                                    FontSize="15"
                                                    Foreground="{DynamicResource TextBrush}"
                                                    Opacity="0.92"
@@ -198,7 +307,7 @@
                                         <TextBlock Grid.Column="0"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
-                                                   FontFamily="{StaticResource HoverFieldIconFont}"
+                                                   FontFamily="{x:Static local:HoverFieldCatalog.GlyphFontFamily}"
                                                    FontSize="15"
                                                    Foreground="{DynamicResource TextBrush}"
                                                    Opacity="0.92"
@@ -253,7 +362,8 @@
                        FontWeight="SemiBold"
                        Margin="0,0,0,8" />
 
-            <Border HorizontalAlignment="Left"
+            <Border x:Name="PreviewChromeBorder"
+                    HorizontalAlignment="Left"
                     MinWidth="120"
                     MaxWidth="216"
                     Width="{Binding HoverWidth}"
@@ -290,7 +400,7 @@
                                 <StackPanel>
                                     <Border Height="1"
                                             Margin="{Binding SeparatorMargin}"
-                                            Background="#3C3C40"
+                                            Background="{Binding SeparatorBrush}"
                                             Visibility="{Binding ShowTopSeparator, Converter={StaticResource BoolToVis}}" />
 
                                     <!-- Game art (stacked); hidden when Icon is the only field — hover uses name beside icon. -->
@@ -303,7 +413,7 @@
                                                Source="{Binding PreviewArt}" />
                                         <TextBlock Margin="0,4,0,0"
                                                    FontSize="13"
-                                                   Foreground="#E6E6E6"
+                                                   Foreground="{Binding BodyForeground}"
                                                    TextWrapping="Wrap"
                                                    TextTrimming="CharacterEllipsis"
                                                    LineHeight="18"
@@ -333,7 +443,7 @@
                                                    Margin="10,0,0,0"
                                                    VerticalAlignment="Center"
                                                    FontSize="13"
-                                                   Foreground="#E6E6E6"
+                                                   Foreground="{Binding BodyForeground}"
                                                    TextWrapping="Wrap"
                                                    TextTrimming="CharacterEllipsis"
                                                    LineHeight="18"
@@ -354,12 +464,12 @@
                                                 Width="32"
                                                 Height="32"
                                                 CornerRadius="16"
-                                                Background="#3A3A3E"
+                                                Background="{Binding ChipBackground}"
                                                 VerticalAlignment="Center"
                                                 HorizontalAlignment="Left">
-                                            <TextBlock FontFamily="{StaticResource HoverFieldIconFont}"
+                                            <TextBlock FontFamily="{x:Static local:HoverFieldCatalog.GlyphFontFamily}"
                                                        FontSize="15"
-                                                       Foreground="#D2D2D8"
+                                                       Foreground="{Binding ChipGlyphForeground}"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        Text="{Binding GlyphText}" />
@@ -368,10 +478,11 @@
                                                     Margin="10,0,0,0">
                                             <TextBlock Margin="0,0,0,4"
                                                        Style="{StaticResource HoverPreviewFieldLabel}"
+                                                       Foreground="{Binding LabelForeground}"
                                                        MaxWidth="{Binding StatTextMaxWidth}"
                                                        Text="{Binding DisplayName}" />
                                             <TextBlock FontSize="13"
-                                                       Foreground="#E6E6E6"
+                                                       Foreground="{Binding BodyForeground}"
                                                        TextWrapping="Wrap"
                                                        TextTrimming="CharacterEllipsis"
                                                        LineHeight="18"
@@ -387,9 +498,10 @@
                                     <StackPanel Visibility="{Binding ShowTitleBodyNoIconLayout, Converter={StaticResource BoolToVis}}">
                                         <TextBlock Margin="{Binding PreviewFieldTitleMargin}"
                                                    Style="{StaticResource HoverPreviewFieldLabel}"
+                                                   Foreground="{Binding LabelForeground}"
                                                    Text="{Binding DisplayName}" />
                                         <TextBlock FontSize="13"
-                                                   Foreground="#E6E6E6"
+                                                   Foreground="{Binding BodyForeground}"
                                                    TextWrapping="Wrap"
                                                    TextTrimming="CharacterEllipsis"
                                                    LineHeight="18"
@@ -410,12 +522,12 @@
                                                 Width="32"
                                                 Height="32"
                                                 CornerRadius="16"
-                                                Background="#3A3A3E"
+                                                Background="{Binding ChipBackground}"
                                                 VerticalAlignment="Center"
                                                 HorizontalAlignment="Left">
-                                            <TextBlock FontFamily="{StaticResource HoverFieldIconFont}"
+                                            <TextBlock FontFamily="{x:Static local:HoverFieldCatalog.GlyphFontFamily}"
                                                        FontSize="15"
-                                                       Foreground="#D2D2D8"
+                                                       Foreground="{Binding ChipGlyphForeground}"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"
                                                        Text="{Binding GlyphText}" />
@@ -424,7 +536,7 @@
                                                    Margin="10,0,0,0"
                                                    VerticalAlignment="Center"
                                                    FontSize="13"
-                                                   Foreground="#E6E6E6"
+                                                   Foreground="{Binding BodyForeground}"
                                                    TextWrapping="Wrap"
                                                    TextTrimming="CharacterEllipsis"
                                                    LineHeight="18"
@@ -438,7 +550,7 @@
                                     <!-- Value only -->
                                     <TextBlock Margin="{Binding ContinuationRowOutermostMargin}"
                                                FontSize="13"
-                                               Foreground="#E6E6E6"
+                                               Foreground="{Binding BodyForeground}"
                                                TextWrapping="Wrap"
                                                TextTrimming="CharacterEllipsis"
                                                LineHeight="18"

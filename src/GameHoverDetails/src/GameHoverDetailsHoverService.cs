@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -8,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Playnite.SDK;
 using Playnite.SDK.Models;
@@ -24,19 +26,7 @@ namespace GameHoverDetails
         private const double EnterAnimationMs = 80;
         private const double HideDebounceMs = 70;
 
-        private static readonly FontFamily HoverFieldInlineIconFontFamily = new FontFamily("Segoe MDL2 Assets");
-
-        private static readonly SolidColorBrush SeparatorLineBrush = FreezeBrush(Color.FromRgb(60, 60, 64));
-        private static readonly SolidColorBrush GlyphChipBackgroundBrush = FreezeBrush(Color.FromRgb(58, 58, 62));
-        private static readonly SolidColorBrush GlyphChipGlyphBrush = FreezeBrush(Color.FromRgb(210, 210, 215));
-        private static readonly SolidColorBrush BodyTextBrush = FreezeBrush(Color.FromRgb(230, 230, 230));
-
-        private static SolidColorBrush FreezeBrush(Color c)
-        {
-            var b = new SolidColorBrush(c);
-            b.Freeze();
-            return b;
-        }
+        private static FontFamily HoverFieldInlineIconFontFamily => HoverFieldCatalog.GlyphFontFamily;
 
         private const double LabelToValueGapDip = 4;
         private const double FirstBlockHeaderTopDip = 0;
@@ -44,6 +34,7 @@ namespace GameHoverDetails
         private const double GlyphChipGlyphFontSize = 15;
         private const double StatRowGlyphToTextGapDip = 10;
         private const double ChromeCornerRadiusDip = 8;
+        private const double FrostBlurRadius = 24;
 
         /// <summary>Half of field block spacing: used above and below each divider and as top/bottom inset per block so the spacing slider affects both sides.</summary>
         private double FieldBlockSpacingHalfDip()
@@ -74,7 +65,10 @@ namespace GameHoverDetails
         private Game pendingShowGame;
         private FrameworkElement pendingShowAnchor;
         private Popup popup;
+        private Border chromeRoot;
         private Border chromeBorder;
+        private Border frostHost;
+        private Image frostImage;
         private TranslateTransform chromeFlyTransform;
         private StackPanel contentStack;
         private Game lastShownGame;
@@ -82,6 +76,8 @@ namespace GameHoverDetails
         private Storyboard enterStoryboard;
         private int layoutInvokeGeneration;
         private string lastBuiltFieldsFingerprint;
+        private HoverChromePalette palette;
+        private bool settingsNotifyQueued;
 
         public GameHoverDetailsHoverService(Window mainWindow, IPlayniteAPI playniteApi, GameHoverDetailsSettings settings)
         {
@@ -93,7 +89,34 @@ namespace GameHoverDetails
 
         public void NotifySettingsChanged()
         {
-            if (!broken && settings.HoverDisabled)
+            if (broken)
+            {
+                return;
+            }
+
+            if (settingsNotifyQueued)
+            {
+                return;
+            }
+
+            settingsNotifyQueued = true;
+            dispatcher.BeginInvoke(new Action(FlushSettingsChanged), DispatcherPriority.DataBind);
+        }
+
+        private void FlushSettingsChanged()
+        {
+            settingsNotifyQueued = false;
+            if (!attached || broken)
+            {
+                return;
+            }
+
+            ApplySettingsChanged();
+        }
+
+        private void ApplySettingsChanged()
+        {
+            if (!broken && settings.IsHoverSuppressed())
             {
                 showDelayTimer?.Stop();
                 pendingShowGame = null;
@@ -102,13 +125,23 @@ namespace GameHoverDetails
                 return;
             }
 
-            if (broken || popup == null || !popup.IsOpen || lastShownGame == null)
+            if (broken)
             {
                 return;
             }
 
             try
             {
+                if (popup != null)
+                {
+                    ApplyChrome();
+                }
+
+                if (popup == null || !popup.IsOpen || lastShownGame == null)
+                {
+                    return;
+                }
+
                 lastBuiltFieldsFingerprint = null;
                 ShowOrUpdatePopup(lastShownGame, lastShownAnchor);
             }
@@ -146,6 +179,25 @@ namespace GameHoverDetails
             }
 
             attached = true;
+
+            dispatcher.BeginInvoke(new Action(WarmupPopupShell), DispatcherPriority.ContextIdle);
+        }
+
+        private void WarmupPopupShell()
+        {
+            if (broken || !attached)
+            {
+                return;
+            }
+
+            try
+            {
+                EnsurePopupShell();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "GameHoverDetails popup shell warmup failed.");
+            }
         }
 
         public void Detach()
@@ -181,6 +233,11 @@ namespace GameHoverDetails
 
             StopEnterStoryboard();
             HidePopup();
+            if (chromeRoot != null)
+            {
+                chromeRoot.SizeChanged -= ChromeRootOnSizeChanged;
+            }
+
             if (chromeBorder != null)
             {
                 chromeBorder.PreviewMouseMove -= ChromeBorderOnPointerOverChrome;
@@ -188,7 +245,10 @@ namespace GameHoverDetails
             }
 
             popup = null;
+            chromeRoot = null;
             chromeBorder = null;
+            frostHost = null;
+            frostImage = null;
             chromeFlyTransform = null;
             contentStack = null;
             lastShownGame = null;
@@ -241,7 +301,7 @@ namespace GameHoverDetails
                 return;
             }
 
-            if (settings.HoverDisabled)
+            if (settings.IsHoverSuppressed())
             {
                 showDelayTimer?.Stop();
                 pendingShowGame = null;
@@ -279,7 +339,7 @@ namespace GameHoverDetails
 
         private void ScheduleShowAfterDelay(Game game, FrameworkElement anchor)
         {
-            if (settings.HoverDisabled)
+            if (settings.IsHoverSuppressed())
             {
                 showDelayTimer?.Stop();
                 pendingShowGame = null;
@@ -324,7 +384,7 @@ namespace GameHoverDetails
                     return;
                 }
 
-                if (settings.HoverDisabled)
+                if (settings.IsHoverSuppressed())
                 {
                     pendingShowGame = null;
                     pendingShowAnchor = null;
@@ -530,9 +590,9 @@ namespace GameHoverDetails
                 popup.IsOpen = false;
             }
 
-            if (chromeBorder != null)
+            if (chromeRoot != null)
             {
-                chromeBorder.Opacity = 1;
+                chromeRoot.Opacity = 1;
             }
 
             if (chromeFlyTransform != null)
@@ -604,13 +664,14 @@ namespace GameHoverDetails
 
         private void ShowOrUpdatePopup(Game game, FrameworkElement anchor)
         {
-            if (settings.HoverDisabled)
+            if (settings.IsHoverSuppressed())
             {
                 HidePopup();
                 return;
             }
 
             EnsurePopupShell();
+            ApplyChrome();
             var wasOpen = popup.IsOpen;
             var previousId = lastShownGame?.Id;
             var sameGameContinue = wasOpen && previousId != null && previousId == game.Id;
@@ -623,7 +684,8 @@ namespace GameHoverDetails
                 + "\x1e" + w.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 + "\x1e" + (settings.HideFieldTitlesInHover ? "1" : "0")
                 + "\x1e" + (settings.ShowFieldInlineIconsInHover ? "1" : "0")
-                + "\x1e" + settings.HoverFieldBlockSpacingDip.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                + "\x1e" + settings.HoverFieldBlockSpacingDip.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + "\x1e" + HoverChromePalette.ContentFingerprint(settings);
             var canSkipContentRebuild =
                 popup.IsOpen &&
                 lastShownGame != null &&
@@ -637,6 +699,11 @@ namespace GameHoverDetails
 
             chromeBorder.MinWidth = w;
             chromeBorder.MaxWidth = w;
+            if (chromeRoot != null)
+            {
+                chromeRoot.MinWidth = w;
+                chromeRoot.MaxWidth = w;
+            }
             var innerMax = Math.Max(60, w - ChromePadding);
 
             if (!canSkipContentRebuild)
@@ -687,12 +754,12 @@ namespace GameHoverDetails
             StopEnterStoryboard();
             if (sameGameContinue)
             {
-                chromeBorder.Opacity = 1;
+                chromeRoot.Opacity = 1;
                 chromeFlyTransform.X = 0;
             }
             else
             {
-                chromeBorder.Opacity = 0;
+                chromeRoot.Opacity = 0;
                 chromeFlyTransform.X = 0;
             }
 
@@ -722,9 +789,10 @@ namespace GameHoverDetails
             try
             {
                 ClampPopupToVirtualScreen();
+                UpdateFrostBackdrop();
                 if (!runEnterAnimation)
                 {
-                    chromeBorder.Opacity = 1;
+                    chromeRoot.Opacity = 1;
                     chromeFlyTransform.X = 0;
                     return;
                 }
@@ -737,9 +805,9 @@ namespace GameHoverDetails
             {
                 Logger.Error(ex, "GameHoverDetails hover layout/animation failed.");
                 StopEnterStoryboard();
-                if (chromeBorder != null)
+                if (chromeRoot != null)
                 {
-                    chromeBorder.Opacity = 1;
+                    chromeRoot.Opacity = 1;
                 }
 
                 chromeFlyTransform.X = 0;
@@ -760,7 +828,7 @@ namespace GameHoverDetails
                 Duration = duration,
                 EasingFunction = ease
             };
-            Storyboard.SetTarget(opacityAnim, chromeBorder);
+            Storyboard.SetTarget(opacityAnim, chromeRoot);
             Storyboard.SetTargetProperty(opacityAnim, new PropertyPath(UIElement.OpacityProperty));
 
             enterStoryboard = new Storyboard();
@@ -874,7 +942,7 @@ namespace GameHoverDetails
                 {
                     Height = 1,
                     Margin = new Thickness(0, pad, 0, pad),
-                    Background = SeparatorLineBrush,
+                    Background = Palette.Separator,
                     IsHitTestVisible = false
                 });
         }
@@ -886,7 +954,7 @@ namespace GameHoverDetails
                 Text = glyph,
                 FontFamily = HoverFieldInlineIconFontFamily,
                 FontSize = GlyphChipGlyphFontSize,
-                Foreground = GlyphChipGlyphBrush,
+                Foreground = Palette.GlyphChipGlyph,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false
@@ -897,7 +965,7 @@ namespace GameHoverDetails
                 Width = GlyphChipSizeDip,
                 Height = GlyphChipSizeDip,
                 CornerRadius = new CornerRadius(GlyphChipSizeDip / 2),
-                Background = GlyphChipBackgroundBrush,
+                Background = Palette.GlyphChipBackground,
                 Child = glyphTb,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Left,
@@ -930,11 +998,11 @@ namespace GameHoverDetails
                 Grid.SetColumn(chip, 0);
 
                 var label = new TextBlock { Margin = new Thickness(0, 0, 0, LabelToValueGapDip) };
-                HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, textMaxStat);
+                HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, textMaxStat, Palette.LabelText);
                 HoverDetailValuePresenter.SetHeaderText(label, labelText, textMaxStat);
 
                 var body = new TextBlock();
-                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, textMaxStat, BodyTextBrush);
+                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, textMaxStat, Palette.BodyText);
                 HoverDetailValuePresenter.SetBodyContent(body, valueText);
 
                 var textCol = new StackPanel { Margin = new Thickness(StatRowGlyphToTextGapDip, 0, 0, 0) };
@@ -951,11 +1019,11 @@ namespace GameHoverDetails
             if (showTitle && !useInlineGlyph)
             {
                 var label = new TextBlock { Margin = new Thickness(0, topInset, 0, LabelToValueGapDip) };
-                HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, innerMax);
+                HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, innerMax, Palette.LabelText);
                 HoverDetailValuePresenter.SetHeaderText(label, labelText, innerMax);
 
                 var body = new TextBlock { Margin = new Thickness(0, 0, 0, bottomInset) };
-                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, innerMax, BodyTextBrush);
+                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, innerMax, Palette.BodyText);
                 HoverDetailValuePresenter.SetBodyContent(body, valueText);
 
                 contentStack.Children.Add(label);
@@ -980,7 +1048,7 @@ namespace GameHoverDetails
                 {
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, textMaxStat, BodyTextBrush);
+                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, textMaxStat, Palette.BodyText);
                 HoverDetailValuePresenter.SetBodyContent(body, valueText);
                 Grid.SetColumn(body, 1);
                 body.Margin = new Thickness(StatRowGlyphToTextGapDip, 0, 0, 0);
@@ -995,7 +1063,7 @@ namespace GameHoverDetails
             {
                 Margin = new Thickness(0, topInset, 0, bottomInset)
             };
-            HoverDetailValuePresenter.ConfigureBodyTextBlock(bodyOnly, innerMax, BodyTextBrush);
+            HoverDetailValuePresenter.ConfigureBodyTextBlock(bodyOnly, innerMax, Palette.BodyText);
             HoverDetailValuePresenter.SetBodyContent(bodyOnly, valueText);
             contentStack.Children.Add(bodyOnly);
         }
@@ -1069,7 +1137,7 @@ namespace GameHoverDetails
                     Margin = new Thickness(StatRowGlyphToTextGapDip, 0, 0, 0),
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                HoverDetailValuePresenter.ConfigureBodyTextBlock(nameTb, textMax, BodyTextBrush);
+                HoverDetailValuePresenter.ConfigureBodyTextBlock(nameTb, textMax, Palette.BodyText);
                 HoverDetailValuePresenter.SetBodyContent(nameTb, HoverFieldFormatter.Format("Name", game, playniteApi));
                 Grid.SetColumn(nameTb, 1);
 
@@ -1140,7 +1208,7 @@ namespace GameHoverDetails
                 if (showTitle)
                 {
                     var label = new TextBlock { Margin = new Thickness(0, topInset, 0, LabelToValueGapDip) };
-                    HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, innerMax);
+                    HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, innerMax, Palette.LabelText);
                     HoverDetailValuePresenter.SetHeaderText(label, labelText, innerMax);
                     contentStack.Children.Add(label);
                     panel.Margin = new Thickness(0, 0, 0, bottomInset);
@@ -1185,37 +1253,233 @@ namespace GameHoverDetails
                 IsHitTestVisible = true
             };
 
+            frostImage = new Image
+            {
+                Stretch = Stretch.Fill,
+                IsHitTestVisible = false
+            };
+
+            frostHost = new Border
+            {
+                CornerRadius = new CornerRadius(ChromeCornerRadiusDip),
+                ClipToBounds = true,
+                IsHitTestVisible = false,
+                Child = frostImage,
+                Visibility = Visibility.Collapsed
+            };
+
             chromeFlyTransform = new TranslateTransform();
             chromeBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(28, 28, 30)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(72, 72, 78)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(ChromeCornerRadiusDip),
                 Child = contentStack,
-                IsHitTestVisible = true,
-                RenderTransform = chromeFlyTransform,
-                RenderTransformOrigin = new Point(0, 0),
-                Effect = new DropShadowEffect
-                {
-                    Color = Colors.Black,
-                    BlurRadius = 14,
-                    ShadowDepth = 2,
-                    Opacity = 0.32,
-                    Direction = 270
-                }
+                IsHitTestVisible = true
             };
             chromeBorder.PreviewMouseMove += ChromeBorderOnPointerOverChrome;
             chromeBorder.MouseEnter += ChromeBorderOnPointerOverChrome;
+
+            var shadow = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(72, 0, 0, 0)),
+                CornerRadius = new CornerRadius(ChromeCornerRadiusDip),
+                IsHitTestVisible = false,
+                RenderTransform = new TranslateTransform(0, 2)
+            };
+
+            var layers = new Grid();
+            layers.Children.Add(shadow);
+            layers.Children.Add(frostHost);
+            layers.Children.Add(chromeBorder);
+
+            chromeRoot = new Border
+            {
+                Background = Brushes.Transparent,
+                CornerRadius = new CornerRadius(ChromeCornerRadiusDip),
+                Child = layers,
+                IsHitTestVisible = true,
+                RenderTransform = chromeFlyTransform,
+                RenderTransformOrigin = new Point(0, 0)
+            };
+            chromeRoot.SizeChanged += ChromeRootOnSizeChanged;
 
             popup = new Popup
             {
                 AllowsTransparency = true,
                 StaysOpen = true,
                 PopupAnimation = PopupAnimation.None,
-                Child = chromeBorder,
+                Child = chromeRoot,
                 IsHitTestVisible = true
             };
+
+            ApplyChrome();
+        }
+
+        private void ChromeRootOnSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateFrostClip();
+        }
+
+        private void UpdateFrostClip()
+        {
+            if (frostHost == null || chromeRoot == null)
+            {
+                return;
+            }
+
+            var w = chromeRoot.ActualWidth;
+            var h = chromeRoot.ActualHeight;
+            if (w <= 0 || h <= 0)
+            {
+                frostHost.Clip = null;
+                return;
+            }
+
+            frostHost.Clip = new RectangleGeometry(
+                new Rect(0, 0, w, h),
+                ChromeCornerRadiusDip,
+                ChromeCornerRadiusDip);
+        }
+
+        private void UpdateFrostBackdrop()
+        {
+            if (frostHost == null || frostImage == null || chromeRoot == null)
+            {
+                return;
+            }
+
+            var useFrost = settings.HoverChromeBackgroundOpacity < 100;
+            if (!useFrost)
+            {
+                frostHost.Visibility = Visibility.Collapsed;
+                frostImage.Source = null;
+                frostImage.Effect = null;
+                return;
+            }
+
+            EnsureFrostBlurEffect();
+            frostHost.Visibility = Visibility.Visible;
+
+            if (popup == null || !popup.IsOpen || chromeRoot.ActualWidth < 2 || chromeRoot.ActualHeight < 2)
+            {
+                return;
+            }
+
+            // CopyFromScreen of a visible panel would snapshot the hover itself. Capture only
+            // while the chrome is still transparent (enter animation / first layout).
+            if (chromeRoot.Opacity >= 0.2)
+            {
+                if (frostImage.Source == null)
+                {
+                    frostHost.Visibility = Visibility.Collapsed;
+                }
+
+                return;
+            }
+
+            try
+            {
+                var snapshot = CapturePopupScreenRect();
+                if (snapshot == null)
+                {
+                    frostHost.Visibility = Visibility.Collapsed;
+                    frostImage.Source = null;
+                    return;
+                }
+
+                frostImage.Source = snapshot;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "GameHoverDetails frost snapshot failed.");
+                frostHost.Visibility = Visibility.Collapsed;
+                frostImage.Source = null;
+            }
+        }
+
+        private void EnsureFrostBlurEffect()
+        {
+            if (frostImage == null || frostImage.Effect != null)
+            {
+                return;
+            }
+
+            frostImage.Effect = new BlurEffect
+            {
+                Radius = FrostBlurRadius,
+                KernelType = KernelType.Gaussian
+            };
+        }
+
+        private BitmapSource CapturePopupScreenRect()
+        {
+            var w = chromeRoot.ActualWidth;
+            var h = chromeRoot.ActualHeight;
+            var dpiX = 96.0;
+            var dpiY = 96.0;
+            var source = PresentationSource.FromVisual(chromeRoot) ?? PresentationSource.FromVisual(mainWindow);
+            if (source?.CompositionTarget != null)
+            {
+                var m = source.CompositionTarget.TransformToDevice;
+                dpiX = 96.0 * m.M11;
+                dpiY = 96.0 * m.M22;
+            }
+
+            var pixelW = Math.Max(1, (int)Math.Ceiling(w * dpiX / 96.0));
+            var pixelH = Math.Max(1, (int)Math.Ceiling(h * dpiY / 96.0));
+            if (pixelW > 4096 || pixelH > 4096)
+            {
+                return null;
+            }
+
+            var topLeft = chromeRoot.PointToScreen(new Point(0, 0));
+            var screenX = (int)Math.Round(topLeft.X);
+            var screenY = (int)Math.Round(topLeft.Y);
+
+            using (var bmp = new System.Drawing.Bitmap(
+                pixelW,
+                pixelH,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+            {
+                using (var g = System.Drawing.Graphics.FromImage(bmp))
+                {
+                    g.CopyFromScreen(
+                        screenX,
+                        screenY,
+                        0,
+                        0,
+                        new System.Drawing.Size(pixelW, pixelH),
+                        System.Drawing.CopyPixelOperation.SourceCopy);
+                }
+
+                var hBitmap = bmp.GetHbitmap();
+                try
+                {
+                    var image = Imaging.CreateBitmapSourceFromHBitmap(
+                        hBitmap,
+                        IntPtr.Zero,
+                        Int32Rect.Empty,
+                        BitmapSizeOptions.FromEmptyOptions());
+                    image.Freeze();
+                    return image;
+                }
+                finally
+                {
+                    DeleteObject(hBitmap);
+                }
+            }
+        }
+
+        [DllImport("gdi32.dll", ExactSpelling = true)]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        private HoverChromePalette Palette => palette ?? (palette = HoverChromePalette.Resolve(settings));
+
+        private void ApplyChrome()
+        {
+            palette = HoverChromePalette.Resolve(settings);
+            HoverChromePalette.ApplyToChromeBorder(chromeBorder, settings);
+            UpdateFrostBackdrop();
         }
     }
 }

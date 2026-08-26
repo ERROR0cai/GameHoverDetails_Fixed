@@ -22,6 +22,7 @@ namespace GameHoverDetails
         private bool addFieldComboItemHandledMouseDown;
         private bool fieldsListWheelHooked;
         private Game previewSampleGame;
+        private ImageSource cachedFallbackIcon;
 
         /// <summary>Stable ItemsSource for Add field — sync in place so the open dropdown does not close/reopen on each add.</summary>
         private readonly ObservableCollection<AddFieldOption> addFieldComboItems = new ObservableCollection<AddFieldOption>();
@@ -74,7 +75,8 @@ namespace GameHoverDetails
                 ImageSource previewArt,
                 double previewInnerContentWidthDip,
                 bool showIconBesideGameName,
-                string besideIconGameName)
+                string besideIconGameName,
+                HoverChromePalette palette)
             {
                 DisplayName = displayName;
                 SampleValue = sampleValue ?? string.Empty;
@@ -87,6 +89,11 @@ namespace GameHoverDetails
                 PreviewArt = previewArt;
                 ShowIconBesideGameName = showIconBesideGameName;
                 BesideIconGameName = besideIconGameName ?? string.Empty;
+                BodyForeground = palette?.BodyText;
+                LabelForeground = palette?.LabelText;
+                ChipBackground = palette?.GlyphChipBackground;
+                ChipGlyphForeground = palette?.GlyphChipGlyph;
+                SeparatorBrush = palette?.Separator;
                 BesideIconNameMaxWidth = showIconBesideGameName
                     ? System.Math.Max(48.0, previewInnerContentWidthDip - 40.0 - 10.0)
                     : 0;
@@ -132,6 +139,11 @@ namespace GameHoverDetails
             public bool ShowIconBesideGameName { get; }
             public string BesideIconGameName { get; }
             public double BesideIconNameMaxWidth { get; }
+            public Brush BodyForeground { get; }
+            public Brush LabelForeground { get; }
+            public Brush ChipBackground { get; }
+            public Brush ChipGlyphForeground { get; }
+            public Brush SeparatorBrush { get; }
             public bool ShowArtVerticalStack => ShowPreviewArt && !ShowIconBesideGameName;
             public bool ShowIconBesideGameNameRow => ShowIconBesideGameName;
 
@@ -193,10 +205,16 @@ namespace GameHoverDetails
 
             boundSettings = s;
             s.PropertyChanged += BoundSettingsOnPropertyChanged;
+            if (s.UseThemeChrome)
+            {
+                s.ApplyThemeColorsToPickers();
+            }
+
             TryPickPreviewSampleGame();
             RefreshFieldsList();
             RefreshAddCombo();
             RefreshPreviewFields();
+            ApplyPreviewChrome();
         }
 
         private void UserControl_Unloaded(object sender, RoutedEventArgs e)
@@ -214,6 +232,7 @@ namespace GameHoverDetails
 
             boundSettings = null;
             previewSampleGame = null;
+            cachedFallbackIcon = null;
         }
 
         private void FieldsList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -261,12 +280,29 @@ namespace GameHoverDetails
                 return;
             }
 
+            if (e.PropertyName == nameof(GameHoverDetailsSettings.UseThemeChrome))
+            {
+                if (boundSettings.UseThemeChrome)
+                {
+                    boundSettings.ApplyThemeColorsToPickers();
+                }
+
+                RefreshPreviewFields();
+                ApplyPreviewChrome();
+                return;
+            }
+
             if (e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldTitlesInHover) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitlesInHover) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.ShowFieldInlineIconsInHover) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldBlockSpacingDip))
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldBlockSpacingDip) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundHex) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBorderHex) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeIconBackgroundHex) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundOpacity))
             {
                 RefreshPreviewFields();
+                ApplyPreviewChrome();
             }
         }
 
@@ -286,6 +322,7 @@ namespace GameHoverDetails
             const double chromeHorizontalPadding = 28.0;
             var previewInnerContentWidth = System.Math.Max(48.0, previewChromeWidth - chromeHorizontalPadding);
             var separatorPad = spacing * 0.5;
+            var palette = HoverChromePalette.Resolve(boundSettings);
             var rows = new List<PreviewFieldRow>();
             var keyList = boundSettings.SelectedFieldKeys.Where(HoverFieldCatalog.IsKnownKey).ToList();
             var iconOnlyBesideName = keyList.Count == 1 && keyList[0] == "Icon";
@@ -349,7 +386,8 @@ namespace GameHoverDetails
                     art,
                     previewInnerContentWidth,
                     showBesideName,
-                    besideName));
+                    besideName,
+                    palette));
             }
 
             PreviewFieldsList.ItemsSource = rows;
@@ -357,9 +395,15 @@ namespace GameHoverDetails
 
         /// <summary>
         /// When the preview game has no usable icon, pick a random other library game that has an icon path and load it.
+        /// Cached for the life of the settings view so Save / slider churn does not scan the whole library again.
         /// </summary>
-        private static ImageSource TryLoadFallbackLibraryGameIcon(IPlayniteAPI api, Game previewGame)
+        private ImageSource TryLoadFallbackLibraryGameIcon(IPlayniteAPI api, Game previewGame)
         {
+            if (cachedFallbackIcon != null)
+            {
+                return cachedFallbackIcon;
+            }
+
             if (api?.Database?.Games == null)
             {
                 return null;
@@ -392,6 +436,7 @@ namespace GameHoverDetails
                 var bmp = HoverBitmapLoader.TryLoadGameArt("Icon", donor, api);
                 if (bmp != null)
                 {
+                    cachedFallbackIcon = bmp;
                     return bmp;
                 }
             }
@@ -416,6 +461,7 @@ namespace GameHoverDetails
                 var b = HoverBitmapLoader.TryLoadGameArt("Icon", g, api);
                 if (b != null)
                 {
+                    cachedFallbackIcon = b;
                     return b;
                 }
             }
@@ -680,6 +726,84 @@ namespace GameHoverDetails
             }
 
             boundSettings.DisableFieldAt(row.Index, 0);
+        }
+
+        private void ApplyPreviewChrome()
+        {
+            if (PreviewChromeBorder == null || boundSettings == null)
+            {
+                return;
+            }
+
+            HoverChromePalette.ApplyToChromeBorder(PreviewChromeBorder, boundSettings);
+        }
+
+        private void BackgroundSwatch_Click(object sender, RoutedEventArgs e)
+        {
+            if (boundSettings == null)
+            {
+                return;
+            }
+
+            if (TryPickHexColor(boundSettings.HoverChromeBackgroundHex, out var hex))
+            {
+                boundSettings.HoverChromeBackgroundHex = hex;
+            }
+        }
+
+        private void BorderSwatch_Click(object sender, RoutedEventArgs e)
+        {
+            if (boundSettings == null)
+            {
+                return;
+            }
+
+            if (TryPickHexColor(boundSettings.HoverChromeBorderHex, out var hex))
+            {
+                boundSettings.HoverChromeBorderHex = hex;
+            }
+        }
+
+        private void IconBackgroundSwatch_Click(object sender, RoutedEventArgs e)
+        {
+            if (boundSettings == null)
+            {
+                return;
+            }
+
+            if (TryPickHexColor(boundSettings.HoverChromeIconBackgroundHex, out var hex))
+            {
+                boundSettings.HoverChromeIconBackgroundHex = hex;
+            }
+        }
+
+        private void ResetChromeColors_Click(object sender, RoutedEventArgs e)
+        {
+            boundSettings?.ResetCustomChromeColors();
+        }
+
+        private static bool TryPickHexColor(string currentHex, out string hex)
+        {
+            hex = null;
+            if (!HoverChromePalette.TryParseHex(currentHex, out var wpf))
+            {
+                wpf = HoverChromePalette.FallbackFillColor;
+            }
+
+            using (var dlg = new System.Windows.Forms.ColorDialog())
+            {
+                dlg.AllowFullOpen = true;
+                dlg.FullOpen = true;
+                dlg.Color = System.Drawing.Color.FromArgb(wpf.R, wpf.G, wpf.B);
+                if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                {
+                    return false;
+                }
+
+                var picked = dlg.Color;
+                hex = HoverChromePalette.ToHex(Color.FromRgb(picked.R, picked.G, picked.B));
+                return true;
+            }
         }
 
         private static T FindVisualChild<T>(DependencyObject parent)

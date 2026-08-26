@@ -130,3 +130,33 @@ function Get-ExpectedPextName {
     return "{0}_{1}.pext" -f $AddonId, ($Version -replace "\.", "_")
 }
 
+function Get-PlayniteToolboxExe {
+    param(
+        [string]$ToolboxExe = $env:TOOLBOX_EXE
+    )
+
+    if ($ToolboxExe -and (Test-Path -LiteralPath $ToolboxExe)) {
+        return (Resolve-Path -LiteralPath $ToolboxExe).Path
+    }
+
+    $candidates = @(
+        "$Env:LOCALAPPDATA\Playnite\Toolbox.exe",
+        "$Env:ProgramFiles\Playnite\Toolbox.exe",
+        "${Env:ProgramFiles(x86)}\Playnite\Toolbox.exe",
+        "$Env:LOCALAPPDATA\Programs\Playnite\Toolbox.exe"
+    )
+
+    $onPath = Get-Command "Toolbox.exe" -ErrorAction SilentlyContinue
+    if ($onPath -and $onPath.Source) {
+        $candidates += $onPath.Source
+    }
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate)) {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+
+    return $null
+}
+

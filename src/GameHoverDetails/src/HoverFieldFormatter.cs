@@ -193,39 +193,38 @@ namespace GameHoverDetails
                 return FormatDateNoWeekday(local);
             }
 
-            return "Played " + FormatRelativeElapsed(elapsed) + " ago";
+            return FormatRelativeElapsed(elapsed) + " ago";
         }
 
-        /// <summary>Relative unit phrase for Last Played within the past 30 days (e.g. "2 min", "3 hours").</summary>
+        /// <summary>Relative unit phrase for Last Played within the past 30 days (e.g. "2m", "3h").</summary>
         private static string FormatRelativeElapsed(TimeSpan elapsed)
         {
             var totalSeconds = (int)elapsed.TotalSeconds;
             if (totalSeconds < 60)
             {
-                var seconds = Math.Max(1, totalSeconds);
-                return seconds == 1 ? "1 sec" : seconds + " sec";
+                return Math.Max(1, totalSeconds) + "s";
             }
 
             var totalMinutes = (int)elapsed.TotalMinutes;
             if (totalMinutes < 60)
             {
-                return totalMinutes == 1 ? "1 min" : totalMinutes + " min";
+                return totalMinutes + "m";
             }
 
             var totalHours = (int)elapsed.TotalHours;
             if (totalHours < 24)
             {
-                return totalHours == 1 ? "1 hour" : totalHours + " hours";
+                return totalHours + "h";
             }
 
             var totalDays = (int)elapsed.TotalDays;
             if (totalDays < 7)
             {
-                return totalDays == 1 ? "1 day" : totalDays + " days";
+                return totalDays + "d";
             }
 
             var totalWeeks = totalDays / 7;
-            return totalWeeks == 1 ? "1 week" : totalWeeks + " weeks";
+            return totalWeeks + "w";
         }
 
         private static string FormatLinks(Game game)

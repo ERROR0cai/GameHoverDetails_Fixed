@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Windows.Media;
 
 namespace GameHoverDetails
 {
@@ -71,10 +74,43 @@ namespace GameHoverDetails
             return !string.IsNullOrEmpty(key) && ValidKeys.Contains(key);
         }
 
-        /// <summary>Cover / background / small tile art — no inline MDL2 glyph beside content.</summary>
+        /// <summary>Cover / background / small tile art — no inline Phosphor glyph beside content.</summary>
         public static bool IsGameArtImageField(string key)
         {
             return key == "Icon" || key == "CoverImage" || key == "BackgroundImage";
+        }
+
+        private static FontFamily glyphFontFamily;
+
+        /// <summary>Phosphor Regular (MIT) shipped next to the plugin DLL for settings list, Add field menu, and hover chips. Lazy so Playnite start does not parse the TTF on the UI thread.</summary>
+        public static FontFamily GlyphFontFamily
+        {
+            get
+            {
+                if (glyphFontFamily == null)
+                {
+                    glyphFontFamily = CreateGlyphFontFamily();
+                }
+
+                return glyphFontFamily;
+            }
+        }
+
+        private static FontFamily CreateGlyphFontFamily()
+        {
+            var baseDir = Path.GetDirectoryName(typeof(HoverFieldCatalog).Assembly.Location);
+            if (!string.IsNullOrEmpty(baseDir))
+            {
+                var fontsDir = Path.Combine(baseDir, "fonts") + Path.DirectorySeparatorChar;
+                if (File.Exists(Path.Combine(fontsDir, "Phosphor.ttf")))
+                {
+                    return new FontFamily(new Uri(fontsDir, UriKind.Absolute), "./#Phosphor");
+                }
+            }
+
+            return new FontFamily(
+                new Uri("pack://application:,,,/GameHoverDetails;component/fonts/"),
+                "./#Phosphor");
         }
 
         public static string GetDisplayName(string key)
@@ -83,48 +119,48 @@ namespace GameHoverDetails
             return d?.DisplayName ?? key ?? string.Empty;
         }
 
-        /// <summary>Single character from Segoe MDL2 Assets for settings list / Add field menu.</summary>
+        /// <summary>Single Phosphor Regular PUA glyph (@phosphor-icons/web 2.1.2) for settings list / Add field menu / hover chips.</summary>
         public static string GetSettingsGlyph(string key)
         {
             if (string.IsNullOrEmpty(key))
             {
-                return "\uE897";
+                return "\uE2CE";
             }
 
             switch (key)
             {
-                case "Icon": return "\uE8B9";
-                case "CoverImage": return "\uE91B";
-                case "BackgroundImage": return "\uEF1F";
-                case "Name": return "\uE77B";
-                case "Description": return "\uE736";
-                case "Platform": return "\uE7FC";
-                case "Genre": return "\uE90B";
-                case "Developer": return "\uE716";
-                case "Publisher": return "\uE719";
-                case "Category": return "\uE8FD";
-                case "Tags": return "\uE8EC";
-                case "Features": return "\uE713";
-                case "Series": return "\uE786";
-                case "Region": return "\uE909";
-                case "AgeRating": return "\uEA18";
-                case "Version": return "\uE895";
-                case "Notes": return "\uE70B";
-                case "InstallationFolder": return "\uE8B7";
-                case "InstallSize": return "\uEDA2";
-                case "ReleaseDate": return "\uE8BF";
-                case "DateAdded": return "\uE710";
-                case "TimePlayed": return "\uE916";
-                case "RecentActivity": return "\uE81C";
-                case "LastPlayed": return "\uE787";
-                case "CompletionStatus": return "\uE73E";
-                case "UserScore": return "\uE734";
-                case "CriticScore": return "\uE9D2";
-                case "CommunityScore": return "\uE728";
-                case "Source": return "\uE8A5";
-                case "Library": return "\uE8F1";
-                case "Links": return "\uE71B";
-                default: return "\uE897";
+                case "Icon": return "\uE5DA";
+                case "CoverImage": return "\uE2CA";
+                case "BackgroundImage": return "\uEAA2";
+                case "Name": return "\uE48A";
+                case "Description": return "\uE0A8";
+                case "Platform": return "\uE26E";
+                case "Genre": return "\uE2F4";
+                case "Developer": return "\uE1BC";
+                case "Publisher": return "\uE102";
+                case "Category": return "\uE260";
+                case "Tags": return "\uE478";
+                case "Features": return "\uE6A2";
+                case "Series": return "\uE466";
+                case "Region": return "\uE288";
+                case "AgeRating": return "\uE40C";
+                case "Version": return "\uE278";
+                case "Notes": return "\uE348";
+                case "InstallationFolder": return "\uE24A";
+                case "InstallSize": return "\uE2A0";
+                case "ReleaseDate": return "\uE108";
+                case "DateAdded": return "\uE714";
+                case "TimePlayed": return "\uE19A";
+                case "RecentActivity": return "\uE1A0";
+                case "LastPlayed": return "\uE19E";
+                case "CompletionStatus": return "\uE184";
+                case "UserScore": return "\uE46A";
+                case "CriticScore": return "\uE320";
+                case "CommunityScore": return "\uE68E";
+                case "Source": return "\uE470";
+                case "Library": return "\uE758";
+                case "Links": return "\uE2E2";
+                default: return "\uE2CE";
             }
         }
 

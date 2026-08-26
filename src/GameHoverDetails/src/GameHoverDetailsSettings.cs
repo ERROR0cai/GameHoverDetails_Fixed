@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Media;
 using Playnite.SDK;
 using Playnite.SDK.Data;
 
@@ -14,6 +15,9 @@ namespace GameHoverDetails
         private const int MinFieldBlockSpacingDip = 4;
         private const int MaxFieldBlockSpacingDip = 36;
         private const int DefaultFieldBlockSpacingDip = 11;
+        private const int MinChromeOpacity = 0;
+        private const int MaxChromeOpacity = 100;
+        private const int DefaultChromeOpacity = 100;
 
         private static readonly string[] FactoryDefaultSelectedKeys = { "Icon", "Name", "LastPlayed" };
 
@@ -24,8 +28,16 @@ namespace GameHoverDetails
         private int showDelayMs;
         private int hoverFieldBlockSpacingDip = DefaultFieldBlockSpacingDip;
         private bool hoverDisabled;
+        private bool hoverDisabledInFullscreen = true;
         private bool hideFieldTitlesInHover;
         private bool showFieldInlineIconsInHover;
+        private bool useThemeChrome = true;
+        private string hoverChromeBackgroundHex = HoverChromePalette.DefaultFillHex;
+        private string hoverChromeBorderHex = HoverChromePalette.DefaultBorderHex;
+        private string hoverChromeIconHex = HoverChromePalette.DefaultIconHex;
+        private string hoverChromeIconBackgroundHex = HoverChromePalette.DefaultIconBackgroundHex;
+        private string hoverChromeTextHex = HoverChromePalette.DefaultTextHex;
+        private int hoverChromeBackgroundOpacity = DefaultChromeOpacity;
         private List<string> selectedFieldKeys = new List<string>(FactoryDefaultSelectedKeys);
         private List<string> disabledFieldKeysOrder = new List<string>();
 
@@ -33,8 +45,16 @@ namespace GameHoverDetails
         private int showDelayMsOriginal;
         private int hoverFieldBlockSpacingDipOriginal;
         private bool hoverDisabledOriginal;
+        private bool hoverDisabledInFullscreenOriginal;
         private bool hideFieldTitlesInHoverOriginal;
         private bool showFieldInlineIconsInHoverOriginal;
+        private bool useThemeChromeOriginal;
+        private string hoverChromeBackgroundHexOriginal;
+        private string hoverChromeBorderHexOriginal;
+        private string hoverChromeIconHexOriginal;
+        private string hoverChromeIconBackgroundHexOriginal;
+        private string hoverChromeTextHexOriginal;
+        private int hoverChromeBackgroundOpacityOriginal;
         private List<string> selectedFieldKeysOriginal;
         private List<string> disabledFieldKeysOrderOriginal;
 
@@ -74,6 +94,21 @@ namespace GameHoverDetails
             set => HoverDisabled = !value;
         }
 
+        /// <summary>When true, hover is off in Playnite Fullscreen (persisted; default true).</summary>
+        public bool HoverDisabledInFullscreen
+        {
+            get => hoverDisabledInFullscreen;
+            set => SetValue(ref hoverDisabledInFullscreen, value, nameof(HoverDisabledInFullscreen), nameof(HoverDetailsEnabledInFullscreen));
+        }
+
+        /// <summary>UI binding for "Show hover in Fullscreen mode".</summary>
+        [DontSerialize]
+        public bool HoverDetailsEnabledInFullscreen
+        {
+            get => !hoverDisabledInFullscreen;
+            set => HoverDisabledInFullscreen = !value;
+        }
+
         /// <summary>When true, field labels (e.g. Publisher) are hidden in the hover panel.</summary>
         public bool HideFieldTitlesInHover
         {
@@ -97,12 +132,199 @@ namespace GameHoverDetails
             set => SetValue(ref showFieldInlineIconsInHover, value, nameof(ShowFieldInlineIconsInHover));
         }
 
+        [DontSerialize]
+        private bool syncingThemeIntoHex;
+
+        /// <summary>When true, popup chrome follows Playnite theme (accent-dark fill); pickers stay visible as a live mirror.</summary>
+        public bool UseThemeChrome
+        {
+            get => useThemeChrome;
+            set => SetValue(ref useThemeChrome, value, nameof(UseThemeChrome));
+        }
+
+        public string HoverChromeBackgroundHex
+        {
+            get => hoverChromeBackgroundHex;
+            set
+            {
+                if (!HoverChromePalette.TryNormalizeHex(value, out var hex))
+                {
+                    return;
+                }
+
+                if (string.Equals(hoverChromeBackgroundHex, hex, System.StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                SetValue(ref hoverChromeBackgroundHex, hex, nameof(HoverChromeBackgroundHex), nameof(ChromeBackgroundSwatchBrush));
+                UncheckThemeChromeIfUserEdited();
+            }
+        }
+
+        public string HoverChromeBorderHex
+        {
+            get => hoverChromeBorderHex;
+            set
+            {
+                if (!HoverChromePalette.TryNormalizeHex(value, out var hex))
+                {
+                    return;
+                }
+
+                if (string.Equals(hoverChromeBorderHex, hex, System.StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                SetValue(ref hoverChromeBorderHex, hex, nameof(HoverChromeBorderHex), nameof(ChromeBorderSwatchBrush));
+                UncheckThemeChromeIfUserEdited();
+            }
+        }
+
+        public string HoverChromeIconHex
+        {
+            get => hoverChromeIconHex;
+            set
+            {
+                if (!HoverChromePalette.TryNormalizeHex(value, out var hex))
+                {
+                    return;
+                }
+
+                if (string.Equals(hoverChromeIconHex, hex, System.StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                SetValue(ref hoverChromeIconHex, hex, nameof(HoverChromeIconHex), nameof(ChromeIconSwatchBrush));
+                UncheckThemeChromeIfUserEdited();
+            }
+        }
+
+        public string HoverChromeIconBackgroundHex
+        {
+            get => hoverChromeIconBackgroundHex;
+            set
+            {
+                if (!HoverChromePalette.TryNormalizeHex(value, out var hex))
+                {
+                    return;
+                }
+
+                if (string.Equals(hoverChromeIconBackgroundHex, hex, System.StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                SetValue(ref hoverChromeIconBackgroundHex, hex, nameof(HoverChromeIconBackgroundHex), nameof(ChromeIconBackgroundSwatchBrush));
+                UncheckThemeChromeIfUserEdited();
+            }
+        }
+
+        public string HoverChromeTextHex
+        {
+            get => hoverChromeTextHex;
+            set
+            {
+                if (!HoverChromePalette.TryNormalizeHex(value, out var hex))
+                {
+                    return;
+                }
+
+                if (string.Equals(hoverChromeTextHex, hex, System.StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                SetValue(ref hoverChromeTextHex, hex, nameof(HoverChromeTextHex), nameof(ChromeTextSwatchBrush));
+                UncheckThemeChromeIfUserEdited();
+            }
+        }
+
+        /// <summary>Fill opacity (0–100) for theme and custom chrome.</summary>
+        public int HoverChromeBackgroundOpacity
+        {
+            get => hoverChromeBackgroundOpacity;
+            set => SetValue(ref hoverChromeBackgroundOpacity, ClampChromeOpacity(value));
+        }
+
+        [DontSerialize]
+        public Brush ChromeBackgroundSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeBackgroundHex);
+
+        [DontSerialize]
+        public Brush ChromeBorderSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeBorderHex);
+
+        [DontSerialize]
+        public Brush ChromeIconSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeIconHex);
+
+        [DontSerialize]
+        public Brush ChromeIconBackgroundSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeIconBackgroundHex);
+
+        [DontSerialize]
+        public Brush ChromeTextSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeTextHex);
+
+        /// <summary>Copy live accent-dark theme colors into the pickers without turning off theme-sync.</summary>
+        public void ApplyThemeColorsToPickers()
+        {
+            if (!HoverChromePalette.TryComputeThemeChromeHexes(out var hexes))
+            {
+                return;
+            }
+
+            RunWithThemeHexSync(() =>
+            {
+                HoverChromeBackgroundHex = hexes.Fill;
+                HoverChromeBorderHex = hexes.Border;
+                HoverChromeIconBackgroundHex = hexes.IconBackground;
+            });
+        }
+
+        /// <summary>Restore factory colors and turn off theme-sync.</summary>
+        public void ResetCustomChromeColors()
+        {
+            UseThemeChrome = false;
+            HoverChromeBackgroundHex = HoverChromePalette.DefaultFillHex;
+            HoverChromeBorderHex = HoverChromePalette.DefaultBorderHex;
+            HoverChromeIconHex = HoverChromePalette.DefaultIconHex;
+            HoverChromeIconBackgroundHex = HoverChromePalette.DefaultIconBackgroundHex;
+            HoverChromeTextHex = HoverChromePalette.DefaultTextHex;
+            HoverChromeBackgroundOpacity = DefaultChromeOpacity;
+        }
+
+        private void UncheckThemeChromeIfUserEdited()
+        {
+            if (!syncingThemeIntoHex && useThemeChrome)
+            {
+                UseThemeChrome = false;
+            }
+        }
+
+        internal void RunWithThemeHexSync(System.Action action)
+        {
+            syncingThemeIntoHex = true;
+            try
+            {
+                action();
+            }
+            finally
+            {
+                syncingThemeIntoHex = false;
+            }
+        }
+
         public List<string> SelectedFieldKeys
         {
             get => selectedFieldKeys;
             set
             {
                 var norm = NormalizeKeys(value ?? new List<string>());
+                if (ListsEqual(selectedFieldKeys, norm))
+                {
+                    CoalesceDisabledOrder();
+                    return;
+                }
+
                 SetValue(ref selectedFieldKeys, norm, nameof(SelectedFieldKeys), nameof(SelectedFieldCount));
                 CoalesceDisabledOrder();
             }
@@ -124,6 +346,34 @@ namespace GameHoverDetails
 
         internal IPlayniteAPI TryGetPlayniteApi() => plugin?.GetPlayniteApi();
 
+        /// <summary>True when hover must not show (globally off, or Fullscreen with that option on).</summary>
+        internal bool IsHoverSuppressed()
+        {
+            if (hoverDisabled)
+            {
+                return true;
+            }
+
+            if (!hoverDisabledInFullscreen)
+            {
+                return false;
+            }
+
+            return IsFullscreenApplicationMode(TryGetPlayniteApi());
+        }
+
+        internal static bool IsFullscreenApplicationMode(IPlayniteAPI api)
+        {
+            try
+            {
+                return api?.ApplicationInfo != null && api.ApplicationInfo.Mode == ApplicationMode.Fullscreen;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public GameHoverDetailsSettings()
         {
         }
@@ -141,8 +391,28 @@ namespace GameHoverDetails
                     ? DefaultFieldBlockSpacingDip
                     : ClampFieldBlockSpacingDip(saved.HoverFieldBlockSpacingDip);
                 hoverDisabled = saved.HoverDisabled;
+                hoverDisabledInFullscreen = saved.HoverDisabledInFullscreen ?? true;
                 hideFieldTitlesInHover = saved.HideFieldTitlesInHover;
                 showFieldInlineIconsInHover = saved.ShowFieldInlineIconsInHover;
+                useThemeChrome = saved.UseThemeChrome ?? true;
+                hoverChromeBackgroundHex = HoverChromePalette.NormalizeHexOrDefault(
+                    saved.HoverChromeBackgroundHex,
+                    HoverChromePalette.DefaultFillHex);
+                hoverChromeBorderHex = HoverChromePalette.NormalizeHexOrDefault(
+                    saved.HoverChromeBorderHex,
+                    HoverChromePalette.DefaultBorderHex);
+                hoverChromeIconHex = HoverChromePalette.NormalizeHexOrDefault(
+                    saved.HoverChromeIconHex,
+                    HoverChromePalette.DefaultIconHex);
+                hoverChromeIconBackgroundHex = HoverChromePalette.NormalizeHexOrDefault(
+                    saved.HoverChromeIconBackgroundHex,
+                    HoverChromePalette.DefaultIconBackgroundHex);
+                hoverChromeTextHex = HoverChromePalette.NormalizeHexOrDefault(
+                    saved.HoverChromeTextHex,
+                    HoverChromePalette.DefaultTextHex);
+                hoverChromeBackgroundOpacity = saved.HoverChromeBackgroundOpacity == null
+                    ? DefaultChromeOpacity
+                    : ClampChromeOpacity(saved.HoverChromeBackgroundOpacity.Value);
                 selectedFieldKeys = NormalizeKeys(saved.SelectedFieldKeys ?? new List<string>());
                 disabledFieldKeysOrder = saved.DisabledFieldKeysOrder != null
                     ? new List<string>(saved.DisabledFieldKeysOrder)
@@ -283,8 +553,16 @@ namespace GameHoverDetails
             showDelayMsOriginal = ShowDelayMs;
             hoverFieldBlockSpacingDipOriginal = HoverFieldBlockSpacingDip;
             hoverDisabledOriginal = HoverDisabled;
+            hoverDisabledInFullscreenOriginal = HoverDisabledInFullscreen;
             hideFieldTitlesInHoverOriginal = HideFieldTitlesInHover;
             showFieldInlineIconsInHoverOriginal = ShowFieldInlineIconsInHover;
+            useThemeChromeOriginal = UseThemeChrome;
+            hoverChromeBackgroundHexOriginal = HoverChromeBackgroundHex;
+            hoverChromeBorderHexOriginal = HoverChromeBorderHex;
+            hoverChromeIconHexOriginal = HoverChromeIconHex;
+            hoverChromeIconBackgroundHexOriginal = HoverChromeIconBackgroundHex;
+            hoverChromeTextHexOriginal = HoverChromeTextHex;
+            hoverChromeBackgroundOpacityOriginal = HoverChromeBackgroundOpacity;
             selectedFieldKeysOriginal = new List<string>(SelectedFieldKeys);
             disabledFieldKeysOrderOriginal = new List<string>(DisabledFieldKeysOrder);
         }
@@ -295,19 +573,28 @@ namespace GameHoverDetails
             ShowDelayMs = showDelayMsOriginal;
             HoverFieldBlockSpacingDip = hoverFieldBlockSpacingDipOriginal;
             HoverDisabled = hoverDisabledOriginal;
+            HoverDisabledInFullscreen = hoverDisabledInFullscreenOriginal;
             HideFieldTitlesInHover = hideFieldTitlesInHoverOriginal;
             ShowFieldInlineIconsInHover = showFieldInlineIconsInHoverOriginal;
+            RunWithThemeHexSync(() =>
+            {
+                UseThemeChrome = useThemeChromeOriginal;
+                HoverChromeBackgroundHex = hoverChromeBackgroundHexOriginal;
+                HoverChromeBorderHex = hoverChromeBorderHexOriginal;
+                HoverChromeIconHex = hoverChromeIconHexOriginal;
+                HoverChromeIconBackgroundHex = hoverChromeIconBackgroundHexOriginal;
+                HoverChromeTextHex = hoverChromeTextHexOriginal;
+            });
+            HoverChromeBackgroundOpacity = hoverChromeBackgroundOpacityOriginal;
             SelectedFieldKeys = new List<string>(selectedFieldKeysOriginal ?? new List<string>(FactoryDefaultSelectedKeys));
             DisabledFieldKeysOrder = new List<string>(disabledFieldKeysOrderOriginal ?? new List<string>());
         }
 
         public void EndEdit()
         {
-            HoverWidth = ClampWidth(HoverWidth);
-            ShowDelayMs = ClampShowDelayMs(ShowDelayMs);
-            HoverFieldBlockSpacingDip = ClampFieldBlockSpacingDip(HoverFieldBlockSpacingDip);
-            SelectedFieldKeys = NormalizeKeys(SelectedFieldKeys);
-            CoalesceDisabledOrder();
+            // Persist only. Re-assigning hex/lists here fired PropertyChanged (and used to
+            // uncheck theme-sync) while the settings view was still loaded, which rebuilt
+            // the preview and hover on the UI thread for a couple of seconds.
             plugin.SavePluginSettings(ToPersistedState());
         }
 
@@ -319,8 +606,16 @@ namespace GameHoverDetails
                 ShowDelayMs = ShowDelayMs,
                 HoverFieldBlockSpacingDip = HoverFieldBlockSpacingDip,
                 HoverDisabled = HoverDisabled,
+                HoverDisabledInFullscreen = HoverDisabledInFullscreen,
                 HideFieldTitlesInHover = HideFieldTitlesInHover,
                 ShowFieldInlineIconsInHover = ShowFieldInlineIconsInHover,
+                UseThemeChrome = UseThemeChrome,
+                HoverChromeBackgroundHex = HoverChromeBackgroundHex,
+                HoverChromeBorderHex = HoverChromeBorderHex,
+                HoverChromeIconHex = HoverChromeIconHex,
+                HoverChromeIconBackgroundHex = HoverChromeIconBackgroundHex,
+                HoverChromeTextHex = HoverChromeTextHex,
+                HoverChromeBackgroundOpacity = HoverChromeBackgroundOpacity,
                 SelectedFieldKeys = new List<string>(SelectedFieldKeys),
                 DisabledFieldKeysOrder = new List<string>(DisabledFieldKeysOrder)
             };
@@ -337,6 +632,36 @@ namespace GameHoverDetails
             if (HoverFieldBlockSpacingDip < MinFieldBlockSpacingDip || HoverFieldBlockSpacingDip > MaxFieldBlockSpacingDip)
             {
                 errors.Add($"Field spacing must be between {MinFieldBlockSpacingDip} and {MaxFieldBlockSpacingDip} pixels.");
+            }
+
+            if (HoverChromeBackgroundOpacity < MinChromeOpacity || HoverChromeBackgroundOpacity > MaxChromeOpacity)
+            {
+                errors.Add($"Background opacity must be between {MinChromeOpacity} and {MaxChromeOpacity} percent.");
+            }
+
+            if (!HoverChromePalette.TryParseHex(HoverChromeBackgroundHex, out _))
+            {
+                errors.Add("Hover background color is not a valid hex color.");
+            }
+
+            if (!HoverChromePalette.TryParseHex(HoverChromeBorderHex, out _))
+            {
+                errors.Add("Hover border color is not a valid hex color.");
+            }
+
+            if (!HoverChromePalette.TryParseHex(HoverChromeIconHex, out _))
+            {
+                errors.Add("Hover icon color is not a valid hex color.");
+            }
+
+            if (!HoverChromePalette.TryParseHex(HoverChromeIconBackgroundHex, out _))
+            {
+                errors.Add("Hover icon background color is not a valid hex color.");
+            }
+
+            if (!HoverChromePalette.TryParseHex(HoverChromeTextHex, out _))
+            {
+                errors.Add("Hover text color is not a valid hex color.");
             }
 
             if (SelectedFieldKeys.Count == 0)
@@ -375,6 +700,16 @@ namespace GameHoverDetails
             }
 
             return v > MaxFieldBlockSpacingDip ? MaxFieldBlockSpacingDip : v;
+        }
+
+        private static int ClampChromeOpacity(int v)
+        {
+            if (v < MinChromeOpacity)
+            {
+                return MinChromeOpacity;
+            }
+
+            return v > MaxChromeOpacity ? MaxChromeOpacity : v;
         }
 
         private static List<string> NormalizeKeys(List<string> keys)
@@ -421,7 +756,35 @@ namespace GameHoverDetails
                 }
             }
 
+            if (ListsEqual(disabledFieldKeysOrder, next))
+            {
+                return;
+            }
+
             SetValue(ref disabledFieldKeysOrder, next, nameof(DisabledFieldKeysOrder));
+        }
+
+        private static bool ListsEqual(List<string> a, List<string> b)
+        {
+            if (ReferenceEquals(a, b))
+            {
+                return true;
+            }
+
+            if (a == null || b == null || a.Count != b.Count)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < a.Count; i++)
+            {
+                if (!string.Equals(a[i], b[i], System.StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

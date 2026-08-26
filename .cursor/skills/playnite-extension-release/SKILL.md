@@ -9,7 +9,7 @@ description: Playnite extension releases — .pext, zip, Toolbox verify, Install
 
 - **Use this skill** for any “package a release,” “create `.pext` / zip for GitHub,” `InstallerManifest` / `PackageUrl` alignment at **ship time**, or “what to run to produce **`artifacts/releases/`**” (see **What to run**).
 - **Do not** use for everyday compile, MSBuild, or WPF build fixes — use **`playnite-extension-build`**. Release packaging **does not compile**; it expects **Release** (or chosen config) output where the profile’s **`outputPath`** points (from **`src\extensions.json`**).
-- **Toolbox:** scripts locate **`Toolbox.exe`** or bootstrap Playnite; set **`$env:TOOLBOX_EXE`** if resolution fails. Verify steps need a working Toolbox.
+- **Toolbox:** scripts resolve **`Toolbox.exe`** with **`Get-PlayniteToolboxExe`** (`%LOCALAPPDATA%\Playnite`, Program Files, `%LOCALAPPDATA%\Programs\Playnite`, PATH). Override with **`$env:TOOLBOX_EXE`** or **`-ToolboxExe`** if resolution fails. Verify steps need a working Toolbox.
 
 ## What to run
 
@@ -51,7 +51,18 @@ When adding or editing **`InstallerManifest.yaml`** for **any** extension in **`
 - Keep every block self-consistent for that release: **`RequiredApiVersion`**, **`ReleaseDate`**, **`PackageUrl`**, **`Changelog`**.
 - **Repo validation** (`validate-extension`, `package-release` expectations) reads the **first** package’s **`PackageUrl`** as the one that must match the current **`extension.yaml`** `Version` and this repo’s **`tagPattern`** / **`.pext`** naming — always keep **newest first**.
 
-**Manual Toolbox** (if not using scripts): [Toolbox — packing extensions](https://playnite.link/docs/tutorials/toolbox.html#packing-extensions)
+### Toolbox — location and manual commands
+
+**Preferred:** let the scripts find Toolbox (`Get-PlayniteToolboxExe` in **`scripts/extension-profiles.ps1`**). Pass **`-ToolboxExe`** or set **`$env:TOOLBOX_EXE`** only when that fails.
+
+Typical installer path (expand per machine; do not hardcode a user profile):
+
+```powershell
+& "$env:LOCALAPPDATA\Playnite\Toolbox.exe" verify installer src\<PluginName>\info\InstallerManifest.yaml
+& "$env:LOCALAPPDATA\Playnite\Toolbox.exe" pack artifacts\builds\<key> artifacts\releases\<key>
+```
+
+Docs: [Toolbox — packing extensions](https://playnite.link/docs/tutorials/toolbox.html#packing-extensions)
 
 ## Version bumps (only when cutting a release)
 

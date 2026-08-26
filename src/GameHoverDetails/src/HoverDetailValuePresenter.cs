@@ -70,14 +70,19 @@ namespace GameHoverDetails
             header.MaxWidth = innerMax;
         }
 
+        public static void ConfigureFieldLabelTextBlock(TextBlock label, double innerMax)
+        {
+            ConfigureFieldLabelTextBlock(label, innerMax, null);
+        }
+
         /// <summary>
         /// Muted field title (hover + settings preview): small caps, secondary color.
         /// </summary>
-        public static void ConfigureFieldLabelTextBlock(TextBlock label, double innerMax)
+        public static void ConfigureFieldLabelTextBlock(TextBlock label, double innerMax, Brush foreground)
         {
             label.FontWeight = FontWeights.Normal;
             label.FontSize = 10.5;
-            label.Foreground = new SolidColorBrush(Color.FromRgb(152, 152, 157));
+            label.Foreground = foreground ?? new SolidColorBrush(Color.FromRgb(152, 152, 157));
             label.LineHeight = 14;
             label.MaxHeight = label.LineHeight * MaxValueLines;
             label.TextWrapping = TextWrapping.Wrap;

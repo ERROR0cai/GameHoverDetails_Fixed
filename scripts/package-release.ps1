@@ -54,19 +54,9 @@ try {
         throw "Unable to resolve Name from $extensionManifestFull"
     }
 
-    if (-not $ToolboxExe) {
-        $toolboxCandidates = @(
-            "$Env:ProgramFiles\Playnite\Toolbox.exe",
-            "${Env:ProgramFiles(x86)}\Playnite\Toolbox.exe",
-            "$Env:LOCALAPPDATA\Programs\Playnite\Toolbox.exe"
-        ) | Where-Object { $_ -and (Test-Path $_) }
+    $ToolboxExe = Get-PlayniteToolboxExe -ToolboxExe $ToolboxExe
 
-        if ($toolboxCandidates.Count -gt 0) {
-            $ToolboxExe = $toolboxCandidates[0]
-        }
-    }
-
-    if (-not $ToolboxExe -or -not (Test-Path $ToolboxExe)) {
+    if (-not $ToolboxExe -or -not (Test-Path -LiteralPath $ToolboxExe)) {
         Write-Host "Toolbox.exe not found locally; downloading Playnite to resolve Toolbox..."
         $release = Invoke-RestMethod -Uri "https://api.github.com/repos/JosefNemec/Playnite/releases/latest"
         $archiveAsset = $release.assets | Where-Object { $_.name -match "\.(zip|7z)$" } | Select-Object -First 1
