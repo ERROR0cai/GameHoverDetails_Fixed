@@ -11,15 +11,38 @@ namespace GameHoverDetails
         public int HoverWidth { get; set; }
         public int ShowDelayMs { get; set; }
         public int HoverFieldBlockSpacingDip { get; set; }
+        /// <summary>Null in legacy JSON — treated as 14.</summary>
+        public int? HoverContentPaddingDip { get; set; }
         public bool HoverDisabled { get; set; }
         /// <summary>Null in legacy JSON — treated as true (off in Fullscreen).</summary>
         public bool? HoverDisabledInFullscreen { get; set; }
         public bool HideFieldTitlesInHover { get; set; }
         public bool ShowFieldInlineIconsInHover { get; set; }
+        /// <summary>When true, field icon chips have no fill (glyph only).</summary>
+        public bool HideIconChipBackground { get; set; }
+        /// <summary>When true, no 1px line between field blocks (spacing stays). Null in legacy JSON — treated as true (off).</summary>
+        public bool? HideFieldDividers { get; set; }
+        /// <summary>When true, hover panel has no outline. Null in legacy JSON — treated as false (on).</summary>
+        public bool? HidePanelBorder { get; set; }
+        /// <summary>Null in legacy JSON — treated as 13.</summary>
+        public double? HoverBodyFontSize { get; set; }
+        /// <summary>Null in legacy JSON — treated as 10.5.</summary>
+        public double? HoverTitleFontSize { get; set; }
+        /// <summary>Null in legacy JSON — treated as Unicons. Values: Phosphor, Unicons, HugeIcons.</summary>
+        public string HoverIconStyle { get; set; }
+        /// <summary>Null in legacy JSON — treated as 32.</summary>
+        public int? HoverIconChipSizeDip { get; set; }
+        /// <summary>Null in legacy JSON — treated as 8.</summary>
+        public int? HoverIconChipPaddingDip { get; set; }
+        /// <summary>Null in legacy JSON — treated as Circle. Values: Circle, Rectangle, Rounded, SoftRounded, Squircle, Arch, Tile, Leaf.</summary>
+        public string HoverIconChipShape { get; set; }
         /// <summary>Null in legacy JSON — treated as true (Playnite theme chrome).</summary>
         public bool? UseThemeChrome { get; set; }
+        /// <summary>Null in legacy JSON — treated as Regular. Values: Regular, GameCover.</summary>
+        public string HoverBackgroundStyle { get; set; }
         public string HoverChromeBackgroundHex { get; set; }
         public string HoverChromeBorderHex { get; set; }
+        public string HoverChromeDividerHex { get; set; }
         public string HoverChromeIconHex { get; set; }
         public string HoverChromeIconBackgroundHex { get; set; }
         public string HoverChromeTextHex { get; set; }

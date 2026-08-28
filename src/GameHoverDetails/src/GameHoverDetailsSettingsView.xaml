@@ -13,12 +13,19 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <Style x:Key="HoverPreviewFieldLabel" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Normal" />
-            <Setter Property="FontSize" Value="10.5" />
             <Setter Property="Foreground" Value="#98989D" />
-            <Setter Property="LineHeight" Value="14" />
             <Setter Property="Typography.Capitals" Value="AllSmallCaps" />
         </Style>
-        <!-- Playnite themes often give ItemsControl a ScrollViewer; override so the Fields list only scrolls on the outer RootScrollViewer. -->
+        <Style x:Key="SettingsFieldTitle" TargetType="Label" BasedOn="{StaticResource {x:Type Label}}">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+        <Style x:Key="SettingsFieldTitleText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSize}" />
+        </Style>
+        <!-- Playnite themes often give ItemsControl a ScrollViewer; override so the Fields list only scrolls on the tab ScrollViewer. -->
         <Style x:Key="FieldsListNonScrollingItemsControlStyle" TargetType="ItemsControl">
             <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="Template">
@@ -31,331 +38,607 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="SettingsSectionDivider" TargetType="Border">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Background" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Opacity" Value="0.22" />
+        </Style>
+        <Style x:Key="SettingsDisplaySectionDivider" TargetType="Border" BasedOn="{StaticResource SettingsSectionDivider}">
+            <Setter Property="Margin" Value="0,22,0,16" />
+        </Style>
+        <!-- Playnite Default CheckBox: 18px mark + 1px borders + 5px content gap. Nested
+             groups use this left inset so sliders/combos line up with the checkbox label. -->
+        <Thickness x:Key="SettingsNestedGroupMargin">25,12,0,0</Thickness>
+        <Style x:Key="SettingsTabScrollViewer" TargetType="ScrollViewer">
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="Padding" Value="8,8,8,8" />
+        </Style>
+        <Style x:Key="SettingsTabIntro" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,0,0,12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Opacity" Value="0.75" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSize}" />
+        </Style>
+        <Style x:Key="SettingsFieldLabel" TargetType="Label" BasedOn="{StaticResource SettingsFieldTitle}" />
+        <Style x:Key="SettingsFieldLabelSpaced" TargetType="Label" BasedOn="{StaticResource SettingsFieldTitle}">
+            <Setter Property="Margin" Value="0,16,0,4" />
+        </Style>
+        <Style x:Key="SettingsSliderValue" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSize}" />
+        </Style>
+        <Style x:Key="SettingsParentCheckBox" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Margin" Value="0,20,0,0" />
+        </Style>
+        <Style x:Key="SettingsNestedGroup" TargetType="Panel">
+            <Setter Property="Margin" Value="{StaticResource SettingsNestedGroupMargin}" />
+        </Style>
+        <Style x:Key="SettingsColorRow" TargetType="Grid">
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <!-- Full-width rule under the tab headers (same baseline as the selected-tab underline). -->
+        <Style x:Key="SettingsTabControl" TargetType="TabControl">
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSize}" />
+            <Setter Property="FontFamily" Value="{DynamicResource FontFamily}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <TabPanel IsItemsHost="True"
+                                          KeyboardNavigation.TabIndex="1"
+                                          HorizontalAlignment="Stretch" />
+                                <Border Style="{StaticResource SettingsSectionDivider}"
+                                        VerticalAlignment="Bottom" />
+                            </Grid>
+                            <ContentPresenter Grid.Row="1"
+                                              Margin="{TemplateBinding Padding}"
+                                              ContentSource="SelectedContent"
+                                              TextElement.FontWeight="Normal" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,8,12,8" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSize}" />
+            <Setter Property="FontFamily" Value="{DynamicResource FontFamily}" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Grid Background="Transparent">
+                            <Border x:Name="HeaderChrome" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter ContentSource="Header"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True" />
+                            </Border>
+                            <Border x:Name="SelectedUnderline"
+                                    Height="2"
+                                    VerticalAlignment="Bottom"
+                                    HorizontalAlignment="Stretch"
+                                    SnapsToDevicePixels="True"
+                                    Background="Transparent" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="SelectedUnderline" Property="Background" Value="{DynamicResource TextBrush}" />
+                                <Setter TargetName="HeaderChrome" Property="TextElement.FontWeight" Value="SemiBold" />
+                                <Setter Property="Opacity" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="False">
+                                <Setter Property="Opacity" Value="0.68" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="280" />
-            <ColumnDefinition Width="238" />
+            <ColumnDefinition Width="300" />
         </Grid.ColumnDefinitions>
 
-        <ScrollViewer x:Name="RootScrollViewer"
-                      Grid.Column="0"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      Padding="0,0,8,0">
-            <StackPanel Margin="16">
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Margin="16,16,16,0">
                 <CheckBox Content="{DynamicResource LOCGameHoverDetails_Settings_EnableHover}"
-                          Foreground="{DynamicResource TextBrush}"
                           Margin="0,0,0,10"
                           IsChecked="{Binding HoverDetailsEnabled, Mode=TwoWay}" />
                 <CheckBox Content="{DynamicResource LOCGameHoverDetails_Settings_ShowInFullscreen}"
-                          Foreground="{DynamicResource TextBrush}"
-                          Margin="0,0,0,10"
                           IsEnabled="{Binding HoverDetailsEnabled}"
                           IsChecked="{Binding HoverDetailsEnabledInFullscreen, Mode=TwoWay}" />
+            </StackPanel>
 
-                <Label Content="{DynamicResource LOCGameHoverDetails_Settings_Display}"
-                       Margin="0,36,0,4"
-                       Foreground="{DynamicResource TextBrush}" />
-                <TextBlock Margin="0,0,0,10"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextBrush}"
-                           Opacity="0.75"
-                           FontSize="11.5"
-                           LineHeight="16"
-                           Text="{DynamicResource LOCGameHoverDetails_Settings_DisplayDescription}" />
-                <CheckBox Content="{DynamicResource LOCGameHoverDetails_Settings_ShowTitles}"
-                          Foreground="{DynamicResource TextBrush}"
-                          IsChecked="{Binding HoverTitlesInHover, Mode=TwoWay}" />
-                <CheckBox Margin="0,12,0,0"
-                          Content="{DynamicResource LOCGameHoverDetails_Settings_ShowIcons}"
-                          Foreground="{DynamicResource TextBrush}"
-                          IsChecked="{Binding ShowFieldInlineIconsInHover, Mode=TwoWay}" />
+            <TextBlock Grid.Row="1"
+                       Margin="16,28,16,8"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}"
+                       IsHitTestVisible="False"
+                       Text="{DynamicResource LOCGameHoverDetails_Settings_Heading}" />
 
-                <Label Content="{DynamicResource LOCGameHoverDetails_Settings_Appearance}"
-                       Margin="0,36,0,4"
-                       Foreground="{DynamicResource TextBrush}" />
-                <TextBlock Margin="0,0,0,10"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextBrush}"
-                           Opacity="0.75"
-                           FontSize="11.5"
-                           LineHeight="16"
-                           Text="{DynamicResource LOCGameHoverDetails_Settings_AppearanceDescription}" />
-                <CheckBox Content="{DynamicResource LOCGameHoverDetails_Settings_UseThemeColors}"
-                          Foreground="{DynamicResource TextBrush}"
-                          IsChecked="{Binding UseThemeChrome, Mode=TwoWay}" />
-                <StackPanel Margin="0,12,0,0">
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="100" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextBrush}"
-                                   Text="{DynamicResource LOCGameHoverDetails_Settings_Background}" />
-                        <Button Grid.Column="1"
-                                Width="32"
-                                Height="22"
-                                Margin="8,0,8,0"
-                                Padding="0"
-                                ToolTip="{DynamicResource LOCGameHoverDetails_Settings_PickBackground}"
-                                Click="BackgroundSwatch_Click"
-                                Background="{Binding ChromeBackgroundSwatchBrush}"
-                                BorderBrush="#808080"
-                                BorderThickness="1" />
-                        <TextBox Grid.Column="2"
-                                 VerticalContentAlignment="Center"
-                                 FlowDirection="LeftToRight"
-                                 Foreground="{DynamicResource TextBrush}"
-                                 Text="{Binding HoverChromeBackgroundHex, UpdateSourceTrigger=LostFocus}" />
-                    </Grid>
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="100" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextBrush}"
-                                   Text="{DynamicResource LOCGameHoverDetails_Settings_Border}" />
-                        <Button Grid.Column="1"
-                                Width="32"
-                                Height="22"
-                                Margin="8,0,8,0"
-                                Padding="0"
-                                ToolTip="{DynamicResource LOCGameHoverDetails_Settings_PickBorder}"
-                                Click="BorderSwatch_Click"
-                                Background="{Binding ChromeBorderSwatchBrush}"
-                                BorderBrush="#808080"
-                                BorderThickness="1" />
-                        <TextBox Grid.Column="2"
-                                 VerticalContentAlignment="Center"
-                                 FlowDirection="LeftToRight"
-                                 Foreground="{DynamicResource TextBrush}"
-                                 Text="{Binding HoverChromeBorderHex, UpdateSourceTrigger=LostFocus}" />
-                    </Grid>
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="100" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextBrush}"
-                                   Text="{DynamicResource LOCGameHoverDetails_Settings_IconBackground}" />
-                        <Button Grid.Column="1"
-                                Width="32"
-                                Height="22"
-                                Margin="8,0,8,0"
-                                Padding="0"
-                                ToolTip="{DynamicResource LOCGameHoverDetails_Settings_PickIconBackground}"
-                                Click="IconBackgroundSwatch_Click"
-                                Background="{Binding ChromeIconBackgroundSwatchBrush}"
-                                BorderBrush="#808080"
-                                BorderThickness="1" />
-                        <TextBox Grid.Column="2"
-                                 VerticalContentAlignment="Center"
-                                 FlowDirection="LeftToRight"
-                                 Foreground="{DynamicResource TextBrush}"
-                                 Text="{Binding HoverChromeIconBackgroundHex, UpdateSourceTrigger=LostFocus}" />
-                    </Grid>
-                    <Button Margin="0,8,0,0"
-                            HorizontalAlignment="Left"
-                            Padding="12,4"
-                            Content="{DynamicResource LOCGameHoverDetails_Settings_ResetColors}"
-                            Click="ResetChromeColors_Click" />
-                </StackPanel>
-                <Label Margin="0,16,0,4"
-                       Content="{DynamicResource LOCGameHoverDetails_Settings_BackgroundOpacity}"
-                       Foreground="{DynamicResource TextBrush}" />
-                <Slider Minimum="0"
-                        Maximum="100"
-                        TickFrequency="1"
-                        IsSnapToTickEnabled="True"
-                        Value="{Binding HoverChromeBackgroundOpacity, Mode=TwoWay}" />
-                <TextBlock Margin="0,4,0,0"
-                           Foreground="{DynamicResource TextBrush}"
-                           Text="{Binding HoverChromeBackgroundOpacity, StringFormat='{}{0}%'}" />
+            <TabControl Grid.Row="2"
+                        Style="{StaticResource SettingsTabControl}"
+                        Margin="16,0,16,8"
+                        Padding="0"
+                        SelectedIndex="0"
+                        FontWeight="Normal"
+                        Foreground="{DynamicResource TextBrush}">
+                <TabItem Header="{DynamicResource LOCGameHoverDetails_Settings_TabFields}">
+                    <ScrollViewer x:Name="FieldsScrollViewer"
+                                  Style="{StaticResource SettingsTabScrollViewer}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SettingsTabIntro}"
+                                       Text="{DynamicResource LOCGameHoverDetails_Settings_FieldsDescription}" />
 
-                <Label Margin="0,40,0,4"
-                       Content="{DynamicResource LOCGameHoverDetails_Settings_TimingSize}"
-                       Foreground="{DynamicResource TextBrush}" />
-                <TextBlock Margin="0,0,0,14"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextBrush}"
-                           Opacity="0.75"
-                           FontSize="11.5"
-                           LineHeight="16"
-                           Text="{DynamicResource LOCGameHoverDetails_Settings_TimingSizeDescription}" />
-                <Label Margin="0,0,0,4"
-                       Content="{DynamicResource LOCGameHoverDetails_Settings_TooltipDelay}"
-                       Foreground="{DynamicResource TextBrush}" />
-                <Slider Minimum="0"
-                        Maximum="500"
-                        TickFrequency="1"
-                        IsSnapToTickEnabled="True"
-                        Value="{Binding ShowDelayMs, Mode=TwoWay}" />
-                <TextBlock Margin="0,4,0,0"
-                           Foreground="{DynamicResource TextBrush}"
-                           Text="{Binding ShowDelayMs, StringFormat='{}{0} ms'}" />
-
-                <Label Margin="0,26,0,4"
-                       Content="{DynamicResource LOCGameHoverDetails_Settings_PanelWidth}"
-                       Foreground="{DynamicResource TextBrush}" />
-                <Slider x:Name="WidthSlider"
-                        Minimum="120"
-                        Maximum="500"
-                        TickFrequency="1"
-                        IsSnapToTickEnabled="True"
-                        Value="{Binding HoverWidth, Mode=TwoWay}" />
-                <TextBlock Margin="0,4,0,0"
-                           Foreground="{DynamicResource TextBrush}"
-                           Text="{Binding HoverWidth, StringFormat='{}{0} px'}" />
-
-                <Label Margin="0,26,0,4"
-                       Content="{DynamicResource LOCGameHoverDetails_Settings_FieldSpacing}"
-                       Foreground="{DynamicResource TextBrush}" />
-                <Slider Minimum="4"
-                        Maximum="36"
-                        TickFrequency="1"
-                        IsSnapToTickEnabled="True"
-                        Value="{Binding HoverFieldBlockSpacingDip, Mode=TwoWay}" />
-                <TextBlock Margin="0,4,0,0"
-                           Foreground="{DynamicResource TextBrush}"
-                           Text="{Binding HoverFieldBlockSpacingDip, StringFormat='{}{0} px'}" />
-
-                <Label Margin="0,40,0,4"
-                       Content="{DynamicResource LOCGameHoverDetails_Settings_Fields}"
-                       Foreground="{DynamicResource TextBrush}" />
-                <TextBlock Margin="0,0,0,12"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextBrush}"
-                           Opacity="0.75"
-                           FontSize="11.5"
-                           LineHeight="16"
-                           Text="{DynamicResource LOCGameHoverDetails_Settings_FieldsDescription}" />
-
-                <Border Padding="10,10,10,12"
-                        HorizontalAlignment="Stretch"
-                        BorderThickness="1"
-                        CornerRadius="3"
-                        BorderBrush="#5C5C64">
-                    <StackPanel>
-                        <Label Margin="0,0,0,4"
-                               Content="{DynamicResource LOCGameHoverDetails_Settings_AddField}"
-                               Foreground="{DynamicResource TextBrush}" />
-                        <ComboBox x:Name="AddFieldCombo"
-                                  HorizontalContentAlignment="Left"
-                                  HorizontalAlignment="Stretch"
-                                  MinHeight="32"
-                                  Margin="0,0,0,12"
-                                  Foreground="{DynamicResource TextBrush}"
-                                  DropDownClosed="AddFieldCombo_DropDownClosed"
-                                  PreviewKeyDown="AddFieldCombo_PreviewKeyDown">
-                            <ComboBox.ItemContainerStyle>
-                                <Style TargetType="ComboBoxItem">
-                                    <EventSetter Event="PreviewMouseLeftButtonDown"
-                                                 Handler="AddFieldComboItem_PreviewMouseLeftButtonDown" />
-                                    <EventSetter Event="PreviewMouseLeftButtonUp"
-                                                 Handler="AddFieldComboItem_PreviewMouseLeftButtonUp" />
-                                </Style>
-                            </ComboBox.ItemContainerStyle>
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid MinHeight="26">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="26" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   FontFamily="{x:Static local:HoverFieldCatalog.GlyphFontFamily}"
-                                                   FontSize="15"
-                                                   FlowDirection="LeftToRight"
-                                                   Foreground="{DynamicResource TextBrush}"
-                                                   Opacity="0.92"
-                                                   Text="{Binding SettingsGlyph}" />
-                                        <TextBlock Grid.Column="1"
-                                                   VerticalAlignment="Center"
-                                                   Margin="8,0,0,0"
-                                                   Foreground="{DynamicResource TextBrush}"
-                                                   Text="{Binding DisplayName}"
-                                                   TextTrimming="CharacterEllipsis" />
+                            <Border Padding="10,10,10,12"
+                                    HorizontalAlignment="Stretch"
+                                    BorderThickness="1"
+                                    CornerRadius="3"
+                                    BorderBrush="#5C5C64">
+                                <StackPanel>
+                                    <Label Style="{StaticResource SettingsFieldLabel}"
+                                           Content="{DynamicResource LOCGameHoverDetails_Settings_AddField}" />
+                                    <Grid Margin="0,0,0,12">
+                                    <ComboBox x:Name="AddFieldCombo"
+                                              HorizontalContentAlignment="Left"
+                                              HorizontalAlignment="Stretch"
+                                              MinHeight="32"
+                                              MaxDropDownHeight="320"
+                                              IsEditable="True"
+                                              IsTextSearchEnabled="False"
+                                              StaysOpenOnEdit="True"
+                                              Foreground="{DynamicResource TextBrush}"
+                                              DropDownOpened="AddFieldCombo_DropDownOpened"
+                                              DropDownClosed="AddFieldCombo_DropDownClosed"
+                                              GotKeyboardFocus="AddFieldCombo_GotKeyboardFocus"
+                                              PreviewMouseLeftButtonDown="AddFieldCombo_PreviewMouseLeftButtonDown"
+                                              PreviewKeyDown="AddFieldCombo_PreviewKeyDown">
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem">
+                                                <EventSetter Event="PreviewMouseLeftButtonDown"
+                                                             Handler="AddFieldComboItem_PreviewMouseLeftButtonDown" />
+                                                <EventSetter Event="PreviewMouseLeftButtonUp"
+                                                             Handler="AddFieldComboItem_PreviewMouseLeftButtonUp" />
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid MinHeight="26">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="26" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               FontFamily="{Binding GlyphFontFamily}"
+                                                               FontSize="15"
+                                                               FontWeight="Normal"
+                                                               FlowDirection="LeftToRight"
+                                                               Foreground="{DynamicResource TextBrush}"
+                                                               Opacity="0.92"
+                                                               Text="{Binding SettingsGlyph}" />
+                                                    <TextBlock Grid.Column="1"
+                                                               VerticalAlignment="Center"
+                                                               Margin="8,0,0,0"
+                                                               Foreground="{DynamicResource TextBrush}"
+                                                               Text="{Binding DisplayName}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock x:Name="AddFieldSearchHint"
+                                               IsHitTestVisible="False"
+                                               Margin="10,0,28,0"
+                                               VerticalAlignment="Center"
+                                               Opacity="0.45"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               Text="{DynamicResource LOCGameHoverDetails_Settings_AddFieldSearch}" />
                                     </Grid>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
 
-                        <ItemsControl x:Name="FieldsList"
-                                      Style="{StaticResource FieldsListNonScrollingItemsControlStyle}"
+                                    <ItemsControl x:Name="FieldsList"
+                                                  Style="{StaticResource FieldsListNonScrollingItemsControlStyle}"
+                                                  Margin="0"
+                                                  Padding="0"
+                                                  HorizontalAlignment="Stretch"
+                                                  Foreground="{DynamicResource TextBrush}">
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="28" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               FontFamily="{Binding GlyphFontFamily}"
+                                                               FontSize="15"
+                                                               FontWeight="Normal"
+                                                               FlowDirection="LeftToRight"
+                                                               Foreground="{DynamicResource TextBrush}"
+                                                               Opacity="0.92"
+                                                               Text="{Binding SettingsGlyph}" />
+                                                    <TextBlock Grid.Column="1"
+                                                               VerticalAlignment="Center"
+                                                               Margin="8,0,0,0"
+                                                               Foreground="{DynamicResource TextBrush}"
+                                                               Text="{Binding DisplayName}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <StackPanel Grid.Column="2"
+                                                                Orientation="Horizontal"
+                                                                Margin="8,0,0,0">
+                                                        <Button Padding="8,4"
+                                                                MinWidth="30"
+                                                                Content="↑"
+                                                                FontSize="14"
+                                                                ToolTip="{DynamicResource LOCGameHoverDetails_Settings_MoveUp}"
+                                                                IsEnabled="{Binding CanMoveUp}"
+                                                                Click="EnabledMoveUp_Click" />
+                                                        <Button Padding="8,4"
+                                                                MinWidth="30"
+                                                                Margin="6,0,0,0"
+                                                                Content="↓"
+                                                                FontSize="14"
+                                                                ToolTip="{DynamicResource LOCGameHoverDetails_Settings_MoveDown}"
+                                                                IsEnabled="{Binding CanMoveDown}"
+                                                                Click="EnabledMoveDown_Click" />
+                                                        <Button Padding="8,4"
+                                                                MinWidth="56"
+                                                                Margin="6,0,0,0"
+                                                                Content="{DynamicResource LOCGameHoverDetails_Settings_Remove}"
+                                                                ToolTip="{DynamicResource LOCGameHoverDetails_Settings_RemoveFromHover}"
+                                                                Click="EnabledRemove_Click" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem Header="{DynamicResource LOCGameHoverDetails_Settings_TabDisplay}">
+                    <ScrollViewer Style="{StaticResource SettingsTabScrollViewer}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SettingsTabIntro}"
+                                       Text="{DynamicResource LOCGameHoverDetails_Settings_DisplayDescription}" />
+                            <Label Style="{StaticResource SettingsFieldLabel}"
+                                   Content="{DynamicResource LOCGameHoverDetails_Settings_BodyTextSize}" />
+                            <Slider Minimum="9"
+                                    Maximum="20"
+                                    TickFrequency="0.5"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding HoverBodyFontSize, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                       Text="{Binding HoverBodyFontSize, StringFormat='{}{0:0.#}'}" />
+
+                            <Border Style="{StaticResource SettingsDisplaySectionDivider}" />
+                            <CheckBox Style="{StaticResource SettingsParentCheckBox}"
                                       Margin="0"
-                                      Padding="0"
-                                      HorizontalAlignment="Stretch"
-                                      Foreground="{DynamicResource TextBrush}">
-                            <ItemsControl.ItemContainerStyle>
-                                <Style TargetType="ContentPresenter">
-                                    <Setter Property="HorizontalAlignment" Value="Stretch" />
-                                </Style>
-                            </ItemsControl.ItemContainerStyle>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,2">
+                                      Content="{DynamicResource LOCGameHoverDetails_Settings_ShowTitles}"
+                                      IsChecked="{Binding HoverTitlesInHover, Mode=TwoWay}" />
+                            <StackPanel Style="{StaticResource SettingsNestedGroup}"
+                                        Visibility="{Binding HoverTitlesInHover, Converter={StaticResource BoolToVis}}">
+                                <Label Style="{StaticResource SettingsFieldLabel}"
+                                       Content="{DynamicResource LOCGameHoverDetails_Settings_TitleTextSize}" />
+                                <Slider Minimum="8"
+                                        Maximum="16"
+                                        TickFrequency="0.5"
+                                        IsSnapToTickEnabled="True"
+                                        Value="{Binding HoverTitleFontSize, Mode=TwoWay}" />
+                                <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                           Text="{Binding HoverTitleFontSize, StringFormat='{}{0:0.#}'}" />
+                            </StackPanel>
+
+                            <Border Style="{StaticResource SettingsDisplaySectionDivider}" />
+                            <CheckBox Style="{StaticResource SettingsParentCheckBox}"
+                                      Margin="0"
+                                      Content="{DynamicResource LOCGameHoverDetails_Settings_ShowIcons}"
+                                      IsChecked="{Binding ShowFieldInlineIconsInHover, Mode=TwoWay}" />
+                            <StackPanel Style="{StaticResource SettingsNestedGroup}"
+                                        Visibility="{Binding ShowFieldInlineIconsInHover, Converter={StaticResource BoolToVis}}">
+                                <Label Style="{StaticResource SettingsFieldLabel}"
+                                       Content="{DynamicResource LOCGameHoverDetails_Settings_IconStyle}" />
+                                <ComboBox MinHeight="32"
+                                          SelectedValue="{Binding HoverIconStyle, Mode=TwoWay}"
+                                          SelectedValuePath="Tag"
+                                          Foreground="{DynamicResource TextBrush}">
+                                    <ComboBoxItem Tag="Unicons"
+                                                  Content="{DynamicResource LOCGameHoverDetails_Settings_IconStyleUnicons}" />
+                                    <ComboBoxItem Tag="Phosphor"
+                                                  Content="{DynamicResource LOCGameHoverDetails_Settings_IconStylePhosphor}" />
+                                    <ComboBoxItem Tag="HugeIcons"
+                                                  Content="{DynamicResource LOCGameHoverDetails_Settings_IconStyleHugeIcons}" />
+                                </ComboBox>
+
+                                <Label Style="{StaticResource SettingsFieldLabelSpaced}"
+                                       Content="{DynamicResource LOCGameHoverDetails_Settings_IconSize}" />
+                                <Slider Minimum="24"
+                                        Maximum="48"
+                                        TickFrequency="1"
+                                        IsSnapToTickEnabled="True"
+                                        Value="{Binding HoverIconChipSizeDip, Mode=TwoWay}" />
+                                <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                           Text="{Binding HoverIconChipSizeDip, StringFormat='{}{0} px'}" />
+
+                                <Label Style="{StaticResource SettingsFieldLabelSpaced}"
+                                       Content="{DynamicResource LOCGameHoverDetails_Settings_IconPadding}" />
+                                <Slider Minimum="0"
+                                        Maximum="16"
+                                        TickFrequency="1"
+                                        IsSnapToTickEnabled="True"
+                                        Value="{Binding HoverIconChipPaddingDip, Mode=TwoWay}" />
+                                <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                           Text="{Binding HoverIconChipPaddingDip, StringFormat='{}{0} px'}" />
+
+                                <CheckBox Style="{StaticResource SettingsParentCheckBox}"
+                                          Content="{DynamicResource LOCGameHoverDetails_Settings_ShowIconBackground}"
+                                          IsChecked="{Binding ShowIconChipBackground, Mode=TwoWay}" />
+                                <StackPanel Margin="0,12,0,0"
+                                            Visibility="{Binding ShowIconBackgroundColorControls, Converter={StaticResource BoolToVis}}">
+                                    <Label Style="{StaticResource SettingsFieldLabel}"
+                                           Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyle}" />
+                                    <ComboBox MinHeight="32"
+                                              SelectedValue="{Binding HoverIconChipShape, Mode=TwoWay}"
+                                              SelectedValuePath="Tag"
+                                              Foreground="{DynamicResource TextBrush}">
+                                        <ComboBoxItem Tag="Circle"
+                                                      Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyleCircle}" />
+                                        <ComboBoxItem Tag="Rectangle"
+                                                      Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyleRectangle}" />
+                                        <ComboBoxItem Tag="Rounded"
+                                                      Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyleRounded}" />
+                                        <ComboBoxItem Tag="SoftRounded"
+                                                      Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyleSoftRounded}" />
+                                        <ComboBoxItem Tag="Squircle"
+                                                      Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyleSquircle}" />
+                                        <ComboBoxItem Tag="Arch"
+                                                      Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyleArch}" />
+                                        <ComboBoxItem Tag="Tile"
+                                                      Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyleTile}" />
+                                        <ComboBoxItem Tag="Leaf"
+                                                      Content="{DynamicResource LOCGameHoverDetails_Settings_IconBackgroundStyleLeaf}" />
+                                    </ComboBox>
+                                    <Grid Margin="0,12,0,0">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="28" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="100" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   FontFamily="{x:Static local:HoverFieldCatalog.GlyphFontFamily}"
-                                                   FontSize="15"
-                                                   FlowDirection="LeftToRight"
-                                                   Foreground="{DynamicResource TextBrush}"
-                                                   Opacity="0.92"
-                                                   Text="{Binding SettingsGlyph}" />
-                                        <TextBlock Grid.Column="1"
-                                                   VerticalAlignment="Center"
-                                                   Margin="8,0,0,0"
-                                                   Foreground="{DynamicResource TextBrush}"
-                                                   Text="{Binding DisplayName}"
-                                                   TextTrimming="CharacterEllipsis" />
-                                        <StackPanel Grid.Column="2"
-                                                    Orientation="Horizontal"
-                                                    Margin="8,0,0,0">
-                                            <Button Padding="8,4"
-                                                    MinWidth="30"
-                                                    Content="↑"
-                                                    FontSize="14"
-                                                    ToolTip="{DynamicResource LOCGameHoverDetails_Settings_MoveUp}"
-                                                    IsEnabled="{Binding CanMoveUp}"
-                                                    Click="EnabledMoveUp_Click" />
-                                            <Button Padding="8,4"
-                                                    MinWidth="30"
-                                                    Margin="6,0,0,0"
-                                                    Content="↓"
-                                                    FontSize="14"
-                                                    ToolTip="{DynamicResource LOCGameHoverDetails_Settings_MoveDown}"
-                                                    IsEnabled="{Binding CanMoveDown}"
-                                                    Click="EnabledMoveDown_Click" />
-                                            <Button Padding="8,4"
-                                                    MinWidth="56"
-                                                    Margin="6,0,0,0"
-                                                    Content="{DynamicResource LOCGameHoverDetails_Settings_Remove}"
-                                                    ToolTip="{DynamicResource LOCGameHoverDetails_Settings_RemoveFromHover}"
-                                                    Click="EnabledRemove_Click" />
-                                        </StackPanel>
+                                        <TextBlock Style="{StaticResource SettingsFieldTitleText}"
+                                                   Text="{DynamicResource LOCGameHoverDetails_Settings_IconBackground}" />
+                                        <Button Grid.Column="1"
+                                                Width="32"
+                                                Height="22"
+                                                Margin="8,0,8,0"
+                                                Padding="0"
+                                                ToolTip="{DynamicResource LOCGameHoverDetails_Settings_PickIconBackground}"
+                                                Click="IconBackgroundSwatch_Click"
+                                                Background="{Binding ChromeIconBackgroundSwatchBrush}"
+                                                BorderBrush="#808080"
+                                                BorderThickness="1" />
+                                        <TextBox Grid.Column="2"
+                                                 VerticalContentAlignment="Center"
+                                                 FlowDirection="LeftToRight"
+                                                 Foreground="{DynamicResource TextBrush}"
+                                                 Text="{Binding HoverChromeIconBackgroundHex, UpdateSourceTrigger=LostFocus}" />
                                     </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </ScrollViewer>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="{DynamicResource LOCGameHoverDetails_Settings_TabAppearance}">
+                    <ScrollViewer Style="{StaticResource SettingsTabScrollViewer}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SettingsTabIntro}"
+                                       Text="{DynamicResource LOCGameHoverDetails_Settings_AppearanceDescription}" />
+                            <CheckBox Margin="0,0,0,12"
+                                      Content="{DynamicResource LOCGameHoverDetails_Settings_UseGameBackground}"
+                                      IsChecked="{Binding UseGameBackground, Mode=TwoWay}" />
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox VerticalAlignment="Center"
+                                          Content="{DynamicResource LOCGameHoverDetails_Settings_UseThemeColors}"
+                                          IsChecked="{Binding UseThemeChrome, Mode=TwoWay}" />
+                                <Button Grid.Column="1"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Padding="12,4"
+                                        Content="{DynamicResource LOCGameHoverDetails_Settings_ResetColors}"
+                                        Click="ResetChromeColors_Click" />
+                            </Grid>
+                            <StackPanel Margin="0,16,0,0">
+                                <Grid Style="{StaticResource SettingsColorRow}"
+                                      Visibility="{Binding ShowRegularBackgroundColorControls, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="100" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Style="{StaticResource SettingsFieldTitleText}"
+                                               Text="{DynamicResource LOCGameHoverDetails_Settings_Background}" />
+                                    <Button Grid.Column="1"
+                                            Width="32"
+                                            Height="22"
+                                            Margin="8,0,8,0"
+                                            Padding="0"
+                                            ToolTip="{DynamicResource LOCGameHoverDetails_Settings_PickBackground}"
+                                            Click="BackgroundSwatch_Click"
+                                            Background="{Binding ChromeBackgroundSwatchBrush}"
+                                            BorderBrush="#808080"
+                                            BorderThickness="1" />
+                                    <TextBox Grid.Column="2"
+                                             VerticalContentAlignment="Center"
+                                             FlowDirection="LeftToRight"
+                                             Foreground="{DynamicResource TextBrush}"
+                                             Text="{Binding HoverChromeBackgroundHex, UpdateSourceTrigger=LostFocus}" />
+                                </Grid>
+                            </StackPanel>
+                            <Label Style="{StaticResource SettingsFieldLabelSpaced}"
+                                   Content="{DynamicResource LOCGameHoverDetails_Settings_BackgroundOpacity}" />
+                            <Slider Minimum="0"
+                                    Maximum="100"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding HoverChromeBackgroundOpacity, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                       Text="{Binding HoverChromeBackgroundOpacity, StringFormat='{}{0}%'}" />
+                            <Border Style="{StaticResource SettingsDisplaySectionDivider}" />
+                            <CheckBox Style="{StaticResource SettingsParentCheckBox}"
+                                      Margin="0"
+                                      Content="{DynamicResource LOCGameHoverDetails_Settings_ShowBorder}"
+                                      IsChecked="{Binding ShowPanelBorder, Mode=TwoWay}" />
+                            <Grid Style="{StaticResource SettingsNestedGroup}"
+                                  Visibility="{Binding ShowBorderColorControls, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="100" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource SettingsFieldTitleText}"
+                                           Text="{DynamicResource LOCGameHoverDetails_Settings_Border}" />
+                                <Button Grid.Column="1"
+                                        Width="32"
+                                        Height="22"
+                                        Margin="8,0,8,0"
+                                        Padding="0"
+                                        ToolTip="{DynamicResource LOCGameHoverDetails_Settings_PickBorder}"
+                                        Click="BorderSwatch_Click"
+                                        Background="{Binding ChromeBorderSwatchBrush}"
+                                        BorderBrush="#808080"
+                                        BorderThickness="1" />
+                                <TextBox Grid.Column="2"
+                                         VerticalContentAlignment="Center"
+                                         FlowDirection="LeftToRight"
+                                         Foreground="{DynamicResource TextBrush}"
+                                         Text="{Binding HoverChromeBorderHex, UpdateSourceTrigger=LostFocus}" />
+                            </Grid>
+                            <Border Style="{StaticResource SettingsDisplaySectionDivider}" />
+                            <CheckBox Style="{StaticResource SettingsParentCheckBox}"
+                                      Margin="0"
+                                      Content="{DynamicResource LOCGameHoverDetails_Settings_ShowDividers}"
+                                      IsChecked="{Binding ShowFieldDividers, Mode=TwoWay}" />
+                            <Grid Style="{StaticResource SettingsNestedGroup}"
+                                  Visibility="{Binding ShowDividerColorControls, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="100" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource SettingsFieldTitleText}"
+                                           Text="{DynamicResource LOCGameHoverDetails_Settings_Divider}" />
+                                <Button Grid.Column="1"
+                                        Width="32"
+                                        Height="22"
+                                        Margin="8,0,8,0"
+                                        Padding="0"
+                                        ToolTip="{DynamicResource LOCGameHoverDetails_Settings_PickDivider}"
+                                        Click="DividerSwatch_Click"
+                                        Background="{Binding ChromeDividerSwatchBrush}"
+                                        BorderBrush="#808080"
+                                        BorderThickness="1" />
+                                <TextBox Grid.Column="2"
+                                         VerticalContentAlignment="Center"
+                                         FlowDirection="LeftToRight"
+                                         Foreground="{DynamicResource TextBrush}"
+                                         Text="{Binding HoverChromeDividerHex, UpdateSourceTrigger=LostFocus}" />
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem Header="{DynamicResource LOCGameHoverDetails_Settings_TabTimingSize}">
+                    <ScrollViewer Style="{StaticResource SettingsTabScrollViewer}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SettingsTabIntro}"
+                                       Text="{DynamicResource LOCGameHoverDetails_Settings_TimingSizeDescription}" />
+                            <Label Style="{StaticResource SettingsFieldLabel}"
+                                   Content="{DynamicResource LOCGameHoverDetails_Settings_TooltipDelay}" />
+                            <Slider Minimum="0"
+                                    Maximum="500"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding ShowDelayMs, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                       Text="{Binding ShowDelayMs, StringFormat='{}{0} ms'}" />
+
+                            <Label Style="{StaticResource SettingsFieldLabelSpaced}"
+                                   Content="{DynamicResource LOCGameHoverDetails_Settings_PanelWidth}" />
+                            <Slider x:Name="WidthSlider"
+                                    Minimum="120"
+                                    Maximum="500"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding HoverWidth, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                       Text="{Binding HoverWidth, StringFormat='{}{0} px'}" />
+
+                            <Label Style="{StaticResource SettingsFieldLabelSpaced}"
+                                   Content="{DynamicResource LOCGameHoverDetails_Settings_FieldSpacing}" />
+                            <Slider Minimum="4"
+                                    Maximum="36"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding HoverFieldBlockSpacingDip, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                       Text="{Binding HoverFieldBlockSpacingDip, StringFormat='{}{0} px'}" />
+
+                            <Label Style="{StaticResource SettingsFieldLabelSpaced}"
+                                   Content="{DynamicResource LOCGameHoverDetails_Settings_ListPadding}" />
+                            <Slider Minimum="4"
+                                    Maximum="32"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding HoverContentPaddingDip, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                       Text="{Binding HoverContentPaddingDip, StringFormat='{}{0} px'}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+            </TabControl>
+        </Grid>
 
         <!-- Live preview: Display + Timing & size (width, spacing, titles, icons, enable) -->
         <StackPanel Grid.Column="1"
@@ -370,13 +653,13 @@
             <Border x:Name="PreviewChromeBorder"
                     HorizontalAlignment="Left"
                     MinWidth="120"
-                    MaxWidth="216"
+                    MaxWidth="{Binding PreviewChromeMaxWidth}"
                     Width="{Binding HoverWidth}"
                     CornerRadius="8"
                     BorderThickness="1"
                     BorderBrush="#48484E"
                     Background="#1C1C1E"
-                    Padding="14,12"
+                    Padding="0"
                     Margin="0,0,4,0"
                     UseLayoutRounding="True"
                     SnapsToDevicePixels="True">
@@ -397,13 +680,32 @@
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-                <ItemsControl x:Name="PreviewFieldsList">
+                <Grid x:Name="PreviewChromeBody">
+                    <Canvas ClipToBounds="True"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            IsHitTestVisible="False">
+                        <Image x:Name="PreviewCoverImage"
+                               Stretch="UniformToFill"
+                               Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"
+                               Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"
+                               Visibility="Collapsed"
+                               IsHitTestVisible="False" />
+                    </Canvas>
+                    <Border x:Name="PreviewCoverTint"
+                            Background="#FF000000"
+                            Visibility="Collapsed"
+                            IsHitTestVisible="False" />
+                    <ItemsControl x:Name="PreviewFieldsList"
+                                  Margin="14,12"
+                                  VerticalAlignment="Top"
+                                  FontFamily="{DynamicResource FontFamily}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Background="Transparent"
                                     Margin="{Binding ContentBlockMargin}">
                                 <StackPanel>
-                                    <Border Height="1"
+                                    <Border Height="{Binding SeparatorLineHeight}"
                                             Margin="{Binding SeparatorMargin}"
                                             Background="{Binding SeparatorBrush}"
                                             Visibility="{Binding ShowTopSeparator, Converter={StaticResource BoolToVis}}" />
@@ -417,12 +719,12 @@
                                                MaxHeight="{Binding PreviewArtMaxHeight}"
                                                Source="{Binding PreviewArt}" />
                                         <TextBlock Margin="0,4,0,0"
-                                                   FontSize="13"
+                                                   FontSize="{Binding BodyFontSize}"
                                                    Foreground="{Binding BodyForeground}"
                                                    TextWrapping="Wrap"
                                                    TextTrimming="CharacterEllipsis"
-                                                   LineHeight="18"
-                                                   MaxHeight="54"
+                                                   LineHeight="{Binding BodyLineHeight}"
+                                                   MaxHeight="{Binding BodyMaxHeight}"
                                                    ClipToBounds="True"
                                                    Text="{Binding SampleValue}"
                                                    Visibility="{Binding ShowSampleText, Converter={StaticResource BoolToVis}}" />
@@ -447,12 +749,12 @@
                                         <TextBlock Grid.Column="1"
                                                    Margin="10,0,0,0"
                                                    VerticalAlignment="Center"
-                                                   FontSize="13"
+                                                   FontSize="{Binding BodyFontSize}"
                                                    Foreground="{Binding BodyForeground}"
                                                    TextWrapping="Wrap"
                                                    TextTrimming="CharacterEllipsis"
-                                                   LineHeight="18"
-                                                   MaxHeight="54"
+                                                   LineHeight="{Binding BodyLineHeight}"
+                                                   MaxHeight="{Binding BodyMaxHeight}"
                                                    MaxWidth="{Binding BesideIconNameMaxWidth}"
                                                    ClipToBounds="True"
                                                    Text="{Binding BesideIconGameName}" />
@@ -462,18 +764,19 @@
                                     <Grid Margin="{Binding ContinuationRowOutermostMargin}"
                                           Visibility="{Binding ShowStatRowLayout, Converter={StaticResource BoolToVis}}">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="32" />
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Border Grid.Column="0"
-                                                Width="32"
-                                                Height="32"
-                                                CornerRadius="16"
+                                                Width="{Binding ChipSize}"
+                                                Height="{Binding ChipSize}"
+                                                CornerRadius="{Binding ChipCornerRadius}"
                                                 Background="{Binding ChipBackground}"
                                                 VerticalAlignment="Center"
                                                 HorizontalAlignment="Left">
-                                            <TextBlock FontFamily="{x:Static local:HoverFieldCatalog.GlyphFontFamily}"
-                                                       FontSize="15"
+                                            <TextBlock FontFamily="{Binding GlyphFontFamily}"
+                                                       FontSize="{Binding GlyphFontSize}"
+                                                       FontWeight="Normal"
                                                        FlowDirection="LeftToRight"
                                                        Foreground="{Binding ChipGlyphForeground}"
                                                        HorizontalAlignment="Center"
@@ -484,15 +787,17 @@
                                                     Margin="10,0,0,0">
                                             <TextBlock Margin="0,0,0,4"
                                                        Style="{StaticResource HoverPreviewFieldLabel}"
+                                                       FontSize="{Binding TitleFontSize}"
+                                                       LineHeight="{Binding TitleLineHeight}"
                                                        Foreground="{Binding LabelForeground}"
                                                        MaxWidth="{Binding StatTextMaxWidth}"
                                                        Text="{Binding DisplayName}" />
-                                            <TextBlock FontSize="13"
+                                            <TextBlock FontSize="{Binding BodyFontSize}"
                                                        Foreground="{Binding BodyForeground}"
                                                        TextWrapping="Wrap"
                                                        TextTrimming="CharacterEllipsis"
-                                                       LineHeight="18"
-                                                       MaxHeight="54"
+                                                       LineHeight="{Binding BodyLineHeight}"
+                                                       MaxHeight="{Binding BodyMaxHeight}"
                                                        MaxWidth="{Binding StatTextMaxWidth}"
                                                        ClipToBounds="True"
                                                        Text="{Binding SampleValue}"
@@ -504,14 +809,16 @@
                                     <StackPanel Visibility="{Binding ShowTitleBodyNoIconLayout, Converter={StaticResource BoolToVis}}">
                                         <TextBlock Margin="{Binding PreviewFieldTitleMargin}"
                                                    Style="{StaticResource HoverPreviewFieldLabel}"
+                                                   FontSize="{Binding TitleFontSize}"
+                                                   LineHeight="{Binding TitleLineHeight}"
                                                    Foreground="{Binding LabelForeground}"
                                                    Text="{Binding DisplayName}" />
-                                        <TextBlock FontSize="13"
+                                        <TextBlock FontSize="{Binding BodyFontSize}"
                                                    Foreground="{Binding BodyForeground}"
                                                    TextWrapping="Wrap"
                                                    TextTrimming="CharacterEllipsis"
-                                                   LineHeight="18"
-                                                   MaxHeight="54"
+                                                   LineHeight="{Binding BodyLineHeight}"
+                                                   MaxHeight="{Binding BodyMaxHeight}"
                                                    ClipToBounds="True"
                                                    Text="{Binding SampleValue}"
                                                    Visibility="{Binding ShowSampleText, Converter={StaticResource BoolToVis}}" />
@@ -521,18 +828,19 @@
                                     <Grid Margin="{Binding ContinuationRowOutermostMargin}"
                                           Visibility="{Binding ShowChipValueNoTitleLayout, Converter={StaticResource BoolToVis}}">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="32" />
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Border Grid.Column="0"
-                                                Width="32"
-                                                Height="32"
-                                                CornerRadius="16"
+                                                Width="{Binding ChipSize}"
+                                                Height="{Binding ChipSize}"
+                                                CornerRadius="{Binding ChipCornerRadius}"
                                                 Background="{Binding ChipBackground}"
                                                 VerticalAlignment="Center"
                                                 HorizontalAlignment="Left">
-                                            <TextBlock FontFamily="{x:Static local:HoverFieldCatalog.GlyphFontFamily}"
-                                                       FontSize="15"
+                                            <TextBlock FontFamily="{Binding GlyphFontFamily}"
+                                                       FontSize="{Binding GlyphFontSize}"
+                                                       FontWeight="Normal"
                                                        FlowDirection="LeftToRight"
                                                        Foreground="{Binding ChipGlyphForeground}"
                                                        HorizontalAlignment="Center"
@@ -542,12 +850,12 @@
                                         <TextBlock Grid.Column="1"
                                                    Margin="10,0,0,0"
                                                    VerticalAlignment="Center"
-                                                   FontSize="13"
+                                                   FontSize="{Binding BodyFontSize}"
                                                    Foreground="{Binding BodyForeground}"
                                                    TextWrapping="Wrap"
                                                    TextTrimming="CharacterEllipsis"
-                                                   LineHeight="18"
-                                                   MaxHeight="54"
+                                                   LineHeight="{Binding BodyLineHeight}"
+                                                   MaxHeight="{Binding BodyMaxHeight}"
                                                    MaxWidth="{Binding StatTextMaxWidth}"
                                                    ClipToBounds="True"
                                                    Text="{Binding SampleValue}"
@@ -556,12 +864,12 @@
 
                                     <!-- Value only -->
                                     <TextBlock Margin="{Binding ContinuationRowOutermostMargin}"
-                                               FontSize="13"
+                                               FontSize="{Binding BodyFontSize}"
                                                Foreground="{Binding BodyForeground}"
                                                TextWrapping="Wrap"
                                                TextTrimming="CharacterEllipsis"
-                                               LineHeight="18"
-                                               MaxHeight="54"
+                                               LineHeight="{Binding BodyLineHeight}"
+                                               MaxHeight="{Binding BodyMaxHeight}"
                                                ClipToBounds="True"
                                                Text="{Binding SampleValue}"
                                                Visibility="{Binding ShowValueOnlyLayout, Converter={StaticResource BoolToVis}}" />
@@ -570,6 +878,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                </Grid>
             </Border>
         </StackPanel>
     </Grid>

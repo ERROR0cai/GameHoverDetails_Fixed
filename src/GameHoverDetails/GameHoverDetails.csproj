@@ -24,16 +24,37 @@
       <Link>icon.png</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="fonts\LICENSE">
-      <Link>fonts\LICENSE</Link>
+    <None Include="fonts\LICENSE-Phosphor.txt">
+      <Link>fonts\LICENSE-Phosphor.txt</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="fonts\Phosphor.ttf">
+    <None Include="fonts\LICENSE-Unicons.txt">
+      <Link>fonts\LICENSE-Unicons.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="fonts\LICENSE-HugeIcons.txt">
+      <Link>fonts\LICENSE-HugeIcons.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Resource Include="fonts\Phosphor.ttf">
       <Link>fonts\Phosphor.ttf</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Resource>
+    <Resource Include="fonts\Unicons-Line.ttf">
+      <Link>fonts\Unicons-Line.ttf</Link>
+    </Resource>
+    <Resource Include="fonts\HugeIcons-StrokeRounded.ttf">
+      <Link>fonts\HugeIcons-StrokeRounded.ttf</Link>
+    </Resource>
     <None Include="Localization\*.xaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <Target Name="CopyIconFontFiles" AfterTargets="Build">
+    <ItemGroup>
+      <_IconFontFiles Include="$(MSBuildProjectDirectory)\fonts\*.ttf" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_IconFontFiles)"
+          DestinationFolder="$(OutputPath)fonts"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

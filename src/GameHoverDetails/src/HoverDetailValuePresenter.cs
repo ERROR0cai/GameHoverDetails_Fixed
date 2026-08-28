@@ -47,14 +47,21 @@ namespace GameHoverDetails
 
         public static void ConfigureBodyTextBlock(TextBlock block, double innerMax, Brush foreground)
         {
+            ConfigureBodyTextBlock(block, innerMax, foreground, GameHoverDetailsSettings.DefaultBodyFontSize);
+        }
+
+        public static void ConfigureBodyTextBlock(TextBlock block, double innerMax, Brush foreground, double fontSize)
+        {
+            var size = fontSize > 0 ? fontSize : GameHoverDetailsSettings.DefaultBodyFontSize;
             block.Text = null;
             block.Inlines.Clear();
-            block.FontSize = 13;
+            block.FontFamily = HoverChromePalette.ResolvePlayniteFontFamily();
+            block.FontSize = size;
             block.Foreground = foreground;
             block.TextWrapping = TextWrapping.Wrap;
             block.MaxWidth = innerMax;
             block.TextTrimming = TextTrimming.CharacterEllipsis;
-            block.LineHeight = 18;
+            block.LineHeight = size * (18.0 / GameHoverDetailsSettings.DefaultBodyFontSize);
             block.MaxHeight = block.LineHeight * MaxValueLines;
             block.ClipToBounds = true;
             block.IsHitTestVisible = true;
@@ -63,6 +70,7 @@ namespace GameHoverDetails
 
         public static void ConfigureHeaderTextBlock(TextBlock header, double innerMax)
         {
+            header.FontFamily = HoverChromePalette.ResolvePlayniteFontFamily();
             header.LineHeight = 16;
             header.MaxHeight = header.LineHeight * MaxValueLines;
             header.TextWrapping = TextWrapping.Wrap;
@@ -82,10 +90,17 @@ namespace GameHoverDetails
         /// </summary>
         public static void ConfigureFieldLabelTextBlock(TextBlock label, double innerMax, Brush foreground)
         {
+            ConfigureFieldLabelTextBlock(label, innerMax, foreground, GameHoverDetailsSettings.DefaultTitleFontSize);
+        }
+
+        public static void ConfigureFieldLabelTextBlock(TextBlock label, double innerMax, Brush foreground, double fontSize)
+        {
+            var size = fontSize > 0 ? fontSize : GameHoverDetailsSettings.DefaultTitleFontSize;
+            label.FontFamily = HoverChromePalette.ResolvePlayniteFontFamily();
             label.FontWeight = FontWeights.Normal;
-            label.FontSize = 10.5;
+            label.FontSize = size;
             label.Foreground = foreground ?? new SolidColorBrush(Color.FromRgb(152, 152, 157));
-            label.LineHeight = 14;
+            label.LineHeight = size * (14.0 / GameHoverDetailsSettings.DefaultTitleFontSize);
             label.MaxHeight = label.LineHeight * MaxValueLines;
             label.TextWrapping = TextWrapping.Wrap;
             label.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -391,7 +406,7 @@ namespace GameHoverDetails
                 case "pre":
                 case "code":
                     MaybePrefixLineBreak(parent);
-                    var mono = new Span { FontFamily = new FontFamily("Consolas") };
+                    var mono = new Span { FontFamily = HoverChromePalette.ResolvePlayniteMonospaceFontFamily() };
                     parent.Add(mono);
                     stack.Push(new ElementFrame(mono.Inlines, tag));
                     break;

@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 
 namespace GameHoverDetails
@@ -11,8 +12,12 @@ namespace GameHoverDetails
     /// </summary>
     internal sealed class HoverChromePalette
     {
+        /// <summary>Opaque black overlay; live opacity comes from the background-opacity slider (100% = #000000).</summary>
+        public const byte CoverTintAlpha = 255;
+
         public const string DefaultFillHex = "#FF1C1C1E";
         public const string DefaultBorderHex = "#FF48484E";
+        public const string DefaultDividerHex = "#FF48484E";
         public const string DefaultIconHex = "#FFD2D2D7";
         public const string DefaultIconBackgroundHex = "#FF3A3A3E";
         public const string DefaultTextHex = "#FFE6E6E6";
@@ -25,6 +30,9 @@ namespace GameHoverDetails
 
         private static readonly SolidColorBrush FallbackFillBrush = Freeze(FallbackFillColor);
         private static readonly SolidColorBrush FallbackBodyBrush = Freeze(FallbackBodyColor);
+        private static readonly SolidColorBrush CoverTintSolid = Freeze(Color.FromArgb(CoverTintAlpha, 0, 0, 0));
+
+        public static Brush CoverTintBrush => CoverTintSolid;
 
         public Brush Fill { get; private set; }
         public Brush Border { get; private set; }
@@ -36,12 +44,16 @@ namespace GameHoverDetails
 
         public static HoverChromePalette Resolve(GameHoverDetailsSettings settings)
         {
-            if (settings == null || settings.UseThemeChrome)
+            var palette = settings == null || settings.UseThemeChrome
+                ? ResolveTheme(settings)
+                : ResolveCustom(settings);
+
+            if (settings != null && settings.HideIconChipBackground)
             {
-                return ResolveTheme(settings);
+                palette.GlyphChipBackground = Brushes.Transparent;
             }
 
-            return ResolveCustom(settings);
+            return palette;
         }
 
         /// <summary>Theme-derived picker colors (opaque ARGB hex).</summary>
@@ -49,6 +61,7 @@ namespace GameHoverDetails
         {
             public string Fill { get; set; }
             public string Border { get; set; }
+            public string Divider { get; set; }
             public string IconBackground { get; set; }
         }
 
@@ -58,22 +71,25 @@ namespace GameHoverDetails
             var accent = TryGetThemeAccentColor();
             var fill = ThemeFillFromAccent(accent);
             var border = ThemeBorderFromFillAndAccent(fill, accent);
+            var divider = ThemeDividerFromBorder(border);
             var iconBg = DarkenTowardBlack(accent, 0.62);
 
             fill.A = 255;
             border.A = 255;
+            divider.A = 255;
             iconBg.A = 255;
 
             hexes = new ThemeChromeHexes
             {
                 Fill = ToHex(fill),
                 Border = ToHex(border),
+                Divider = ToHex(divider),
                 IconBackground = ToHex(iconBg)
             };
             return true;
         }
 
-        public static void ApplyToChromeBorder(Border border, GameHoverDetailsSettings settings)
+        public static void ApplyToChromeBorder(Border border, GameHoverDetailsSettings settings, bool coverImageActive = false)
         {
             if (border == null)
             {
@@ -81,8 +97,11 @@ namespace GameHoverDetails
             }
 
             var palette = Resolve(settings);
-            border.Background = palette.Fill;
+            border.Background = coverImageActive ? Brushes.Transparent : palette.Fill;
             border.BorderBrush = palette.Border;
+            border.BorderThickness = settings != null && settings.HidePanelBorder
+                ? new Thickness(0)
+                : new Thickness(1);
         }
 
         public static string ContentFingerprint(GameHoverDetailsSettings settings)
@@ -93,9 +112,12 @@ namespace GameHoverDetails
             }
 
             var opacity = settings.HoverChromeBackgroundOpacity.ToString(CultureInfo.InvariantCulture);
+            var style = settings.HoverBackgroundStyle ?? GameHoverDetailsSettings.BackgroundStyleRegular;
+            var chipBg = settings.HideIconChipBackground ? "off" : "on";
+            var panelBorder = settings.HidePanelBorder ? "off" : "on";
             if (settings.UseThemeChrome)
             {
-                return "theme|" + opacity;
+                return "theme|" + opacity + "|" + style + "|" + chipBg + "|" + panelBorder;
             }
 
             return "custom|"
@@ -103,9 +125,17 @@ namespace GameHoverDetails
                 + "|"
                 + (settings.HoverChromeBorderHex ?? string.Empty)
                 + "|"
+                + (settings.HoverChromeDividerHex ?? string.Empty)
+                + "|"
                 + (settings.HoverChromeIconBackgroundHex ?? string.Empty)
                 + "|"
-                + opacity;
+                + opacity
+                + "|"
+                + style
+                + "|"
+                + chipBg
+                + "|"
+                + panelBorder;
         }
 
         public static Brush SwatchFromHex(string hex)
@@ -248,6 +278,7 @@ namespace GameHoverDetails
             var opacity = settings == null ? 100 : settings.HoverChromeBackgroundOpacity;
             ResolvePlayniteTextBrushes(out var body, out var label);
             var border = Freeze(borderColor);
+            var divider = Freeze(ThemeDividerFromBorder(borderColor));
 
             return new HoverChromePalette
             {
@@ -257,7 +288,7 @@ namespace GameHoverDetails
                 LabelText = label,
                 GlyphChipBackground = Freeze(chipBg),
                 GlyphChipGlyph = body,
-                Separator = border
+                Separator = divider
             };
         }
 
@@ -270,6 +301,7 @@ namespace GameHoverDetails
 
             fillColor.A = 255;
             var borderColor = ParseOpaqueOr(settings.HoverChromeBorderHex, FallbackBorderColor);
+            var dividerColor = ParseOpaqueOr(settings.HoverChromeDividerHex, FallbackBorderColor);
             var iconBgColor = ParseOpaqueOr(settings.HoverChromeIconBackgroundHex, FallbackChipBackgroundColor);
             ResolvePlayniteTextBrushes(out var body, out var label);
             var border = Freeze(borderColor);
@@ -282,7 +314,7 @@ namespace GameHoverDetails
                 LabelText = label,
                 GlyphChipBackground = Freeze(iconBgColor),
                 GlyphChipGlyph = body,
-                Separator = border
+                Separator = Freeze(dividerColor)
             };
         }
 
@@ -291,6 +323,42 @@ namespace GameHoverDetails
         {
             body = FindBrush("TextBrush") ?? FallbackBodyBrush;
             label = body;
+        }
+
+        /// <summary>
+        /// Playnite injects the user/app typeface as <c>FontFamily</c> (default Trebuchet MS).
+        /// WPF <c>Popup</c> does not inherit the main window font.
+        /// </summary>
+        public static FontFamily ResolvePlayniteFontFamily(DependencyObject inheritFrom = null)
+        {
+            var fromApp = FindFontFamily("FontFamily");
+            if (fromApp != null)
+            {
+                return fromApp;
+            }
+
+            if (inheritFrom != null)
+            {
+                var inherited = TextElement.GetFontFamily(inheritFrom);
+                if (inherited != null)
+                {
+                    return inherited;
+                }
+            }
+
+            var window = Application.Current?.MainWindow;
+            if (window != null)
+            {
+                return window.FontFamily;
+            }
+
+            return new FontFamily("Trebuchet MS");
+        }
+
+        /// <summary>Playnite <c>MonospaceFontFamily</c> (default Consolas) for code/pre in hover HTML.</summary>
+        public static FontFamily ResolvePlayniteMonospaceFontFamily()
+        {
+            return FindFontFamily("MonospaceFontFamily") ?? new FontFamily("Consolas");
         }
 
         /// <summary>Darker, slightly desaturated accent mixed further toward black for panel fill.</summary>
@@ -309,6 +377,11 @@ namespace GameHoverDetails
             }
 
             return border;
+        }
+
+        private static Color ThemeDividerFromBorder(Color border)
+        {
+            return Lerp(border, Colors.White, 0.18);
         }
 
         private static Color Desaturate(Color c, double amount)
@@ -455,6 +528,24 @@ namespace GameHoverDetails
                 }
 
                 return app.TryFindResource(key) as Brush;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static FontFamily FindFontFamily(string key)
+        {
+            try
+            {
+                var app = Application.Current;
+                if (app == null)
+                {
+                    return null;
+                }
+
+                return app.TryFindResource(key) as FontFamily;
             }
             catch
             {

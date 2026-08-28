@@ -8,7 +8,7 @@ namespace GameHoverDetails
 {
     internal static class HoverBitmapLoader
     {
-        public static BitmapImage TryLoadGameArt(string fieldKey, Game game, IPlayniteAPI api)
+        public static BitmapImage TryLoadGameArt(string fieldKey, Game game, IPlayniteAPI api, int decodePixelWidth = 0)
         {
             if (game == null || api?.Database == null)
             {
@@ -25,11 +25,11 @@ namespace GameHoverDetails
                     break;
                 case "CoverImage":
                     refId = game.CoverImage;
-                    decodePixels = 480;
+                    decodePixels = decodePixelWidth > 0 ? decodePixelWidth : 480;
                     break;
                 case "BackgroundImage":
                     refId = game.BackgroundImage;
-                    decodePixels = 360;
+                    decodePixels = decodePixelWidth > 0 ? decodePixelWidth : 360;
                     break;
                 default:
                     return null;

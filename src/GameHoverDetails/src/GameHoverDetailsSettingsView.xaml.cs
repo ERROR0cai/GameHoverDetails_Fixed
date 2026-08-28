@@ -18,45 +18,65 @@ namespace GameHoverDetails
 
         private GameHoverDetailsSettings boundSettings;
         private bool suppressAddComboSelectionChanged;
+        private bool suppressAddFieldTextChanged;
+        private bool addFieldTextHandlerAttached;
+        private string addFieldSearchText = string.Empty;
+        /// <summary>Skip clearing search when the dropdown closes because a field was just added.</summary>
+        private bool keepAddFieldSearchOnClose;
         /// <summary>Set when an add was triggered from item PreviewMouseDown so matching PreviewMouseUp does not dismiss the dropdown.</summary>
         private bool addFieldComboItemHandledMouseDown;
         private bool fieldsListWheelHooked;
         private Game previewSampleGame;
         private ImageSource cachedFallbackIcon;
+        private ImageSource cachedPreviewCover;
+        private readonly Dictionary<string, ImageSource> previewArtByField = new Dictionary<string, ImageSource>();
+        private bool attaching;
+        private bool previewRefreshQueued;
 
         /// <summary>Stable ItemsSource for Add field — sync in place so the open dropdown does not close/reopen on each add.</summary>
         private readonly ObservableCollection<AddFieldOption> addFieldComboItems = new ObservableCollection<AddFieldOption>();
 
         private sealed class AddFieldOption
         {
-            public AddFieldOption(string key, string displayName)
+            public AddFieldOption(string key, string displayName, string iconStyle)
             {
                 Key = key;
                 DisplayName = displayName;
+                IconStyle = iconStyle ?? GameHoverDetailsSettings.IconStyleUnicons;
             }
 
             public string Key { get; }
             public string DisplayName { get; }
-            public string SettingsGlyph => HoverFieldCatalog.GetSettingsGlyph(Key);
+            public string IconStyle { get; }
+            public string SettingsGlyph => HoverFieldCatalog.GetGlyph(Key, IconStyle);
+            public FontFamily GlyphFontFamily => HoverFieldCatalog.GetGlyphFontFamily(IconStyle);
+
+            public override string ToString()
+            {
+                return DisplayName;
+            }
         }
 
         private sealed class EnabledFieldRow
         {
-            public EnabledFieldRow(string key, string displayName, int index, int count)
+            public EnabledFieldRow(string key, string displayName, int index, int count, string iconStyle)
             {
                 Key = key;
                 DisplayName = displayName;
                 Index = index;
                 Count = count;
+                IconStyle = iconStyle ?? GameHoverDetailsSettings.IconStyleUnicons;
             }
 
             public string Key { get; }
             public string DisplayName { get; }
             public int Index { get; }
             public int Count { get; }
+            public string IconStyle { get; }
             public bool CanMoveUp => Index > 0;
             public bool CanMoveDown => Index < Count - 1;
-            public string SettingsGlyph => HoverFieldCatalog.GetSettingsGlyph(Key);
+            public string SettingsGlyph => HoverFieldCatalog.GetGlyph(Key, IconStyle);
+            public FontFamily GlyphFontFamily => HoverFieldCatalog.GetGlyphFontFamily(IconStyle);
         }
 
         private sealed class PreviewFieldRow
@@ -76,7 +96,8 @@ namespace GameHoverDetails
                 double previewInnerContentWidthDip,
                 bool showIconBesideGameName,
                 string besideIconGameName,
-                HoverChromePalette palette)
+                HoverChromePalette palette,
+                GameHoverDetailsSettings settings)
             {
                 DisplayName = displayName;
                 SampleValue = sampleValue ?? string.Empty;
@@ -94,10 +115,25 @@ namespace GameHoverDetails
                 ChipBackground = palette?.GlyphChipBackground;
                 ChipGlyphForeground = palette?.GlyphChipGlyph;
                 SeparatorBrush = palette?.Separator;
+                SeparatorLineHeight = settings != null && settings.HideFieldDividers ? 0 : 1;
+                var chip = settings != null
+                    ? (double)settings.HoverIconChipOuterSizeDip
+                    : GameHoverDetailsSettings.DefaultIconChipSizeDip;
+                ChipSize = chip;
+                ChipCornerRadius = settings != null
+                    ? settings.ResolveIconChipCornerRadius()
+                    : new CornerRadius(chip / 2);
+                GlyphFontSize = settings?.HoverIconGlyphFontSize ?? 15;
+                GlyphFontFamily = HoverFieldCatalog.GetGlyphFontFamily(settings?.HoverIconStyle);
+                BodyFontSize = settings?.HoverBodyFontSize ?? GameHoverDetailsSettings.DefaultBodyFontSize;
+                BodyLineHeight = settings?.HoverBodyLineHeight ?? 18;
+                BodyMaxHeight = BodyLineHeight * HoverDetailValuePresenter.MaxValueLines;
+                TitleFontSize = settings?.HoverTitleFontSize ?? GameHoverDetailsSettings.DefaultTitleFontSize;
+                TitleLineHeight = settings?.HoverTitleLineHeight ?? 14;
                 BesideIconNameMaxWidth = showIconBesideGameName
                     ? System.Math.Max(48.0, previewInnerContentWidthDip - 40.0 - 10.0)
                     : 0;
-                StatTextMaxWidth = System.Math.Max(48.0, previewInnerContentWidthDip - 32.0 - 10.0);
+                StatTextMaxWidth = System.Math.Max(48.0, previewInnerContentWidthDip - chip - 10.0);
                 if (previewArt != null)
                 {
                     switch (fieldKey)
@@ -121,6 +157,15 @@ namespace GameHoverDetails
             public string DisplayName { get; }
             public string SampleValue { get; }
             public string GlyphText { get; }
+            public FontFamily GlyphFontFamily { get; }
+            public double ChipSize { get; }
+            public CornerRadius ChipCornerRadius { get; }
+            public double GlyphFontSize { get; }
+            public double BodyFontSize { get; }
+            public double BodyLineHeight { get; }
+            public double BodyMaxHeight { get; }
+            public double TitleFontSize { get; }
+            public double TitleLineHeight { get; }
             public bool ShowInlineGlyph { get; }
             /// <summary>Title row matches hover: off for game-art keys (Icon, cover, background).</summary>
             public bool ShowFieldTitleRow { get; }
@@ -144,6 +189,7 @@ namespace GameHoverDetails
             public Brush ChipBackground { get; }
             public Brush ChipGlyphForeground { get; }
             public Brush SeparatorBrush { get; }
+            public double SeparatorLineHeight { get; }
             public bool ShowArtVerticalStack => ShowPreviewArt && !ShowIconBesideGameName;
             public bool ShowIconBesideGameNameRow => ShowIconBesideGameName;
 
@@ -181,6 +227,13 @@ namespace GameHoverDetails
                 fieldsListWheelHooked = true;
             }
 
+            if (PreviewChromeBody != null)
+            {
+                PreviewChromeBody.SizeChanged -= PreviewChromeBodyOnSizeChanged;
+                PreviewChromeBody.SizeChanged += PreviewChromeBodyOnSizeChanged;
+            }
+
+            EnsureAddFieldSearchHooked();
             TryAttachSettings();
         }
 
@@ -212,31 +265,49 @@ namespace GameHoverDetails
         /// <summary>Subscribe to settings and refresh lists; safe if <see cref="DataContext"/> is set after <see cref="UserControl.Loaded"/>.</summary>
         private void TryAttachSettings()
         {
-            if (boundSettings != null)
-            {
-                boundSettings.PropertyChanged -= BoundSettingsOnPropertyChanged;
-                boundSettings = null;
-            }
-
             var s = DataContext as GameHoverDetailsSettings;
             if (s == null)
+            {
+                if (boundSettings != null)
+                {
+                    boundSettings.PropertyChanged -= BoundSettingsOnPropertyChanged;
+                    boundSettings = null;
+                }
+
+                return;
+            }
+
+            if (ReferenceEquals(boundSettings, s))
             {
                 return;
             }
 
-            boundSettings = s;
-            s.PropertyChanged += BoundSettingsOnPropertyChanged;
-            if (s.UseThemeChrome)
+            if (boundSettings != null)
             {
-                s.ApplyThemeColorsToPickers();
+                boundSettings.PropertyChanged -= BoundSettingsOnPropertyChanged;
             }
 
-            ApplyLayoutFlow();
-            TryPickPreviewSampleGame();
-            RefreshFieldsList();
-            RefreshAddCombo();
-            RefreshPreviewFields();
-            ApplyPreviewChrome();
+            attaching = true;
+            try
+            {
+                boundSettings = s;
+                s.PropertyChanged += BoundSettingsOnPropertyChanged;
+                if (s.UseThemeChrome)
+                {
+                    s.ApplyThemeColorsToPickers();
+                }
+
+                ApplyLayoutFlow();
+                TryPickPreviewSampleGame();
+                RefreshFieldsList();
+                RefreshAddCombo();
+                RefreshPreviewFields();
+                ApplyPreviewChrome();
+            }
+            finally
+            {
+                attaching = false;
+            }
         }
 
         private void UserControl_Unloaded(object sender, RoutedEventArgs e)
@@ -252,14 +323,21 @@ namespace GameHoverDetails
                 boundSettings.PropertyChanged -= BoundSettingsOnPropertyChanged;
             }
 
+            if (PreviewChromeBody != null)
+            {
+                PreviewChromeBody.SizeChanged -= PreviewChromeBodyOnSizeChanged;
+            }
+
             boundSettings = null;
             previewSampleGame = null;
             cachedFallbackIcon = null;
+            cachedPreviewCover = null;
+            previewArtByField.Clear();
         }
 
         private void FieldsList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (RootScrollViewer == null || !(sender is FrameworkElement listHost))
+            if (FieldsScrollViewer == null || !(sender is FrameworkElement listHost))
             {
                 return;
             }
@@ -275,30 +353,35 @@ namespace GameHoverDetails
                 }
 
                 var step = delta / (double)wheelLine * 48.0;
-                var next = RootScrollViewer.VerticalOffset - step;
+                var next = FieldsScrollViewer.VerticalOffset - step;
                 if (next < 0)
                 {
                     next = 0;
                 }
-                else if (next > RootScrollViewer.ScrollableHeight)
+                else if (next > FieldsScrollViewer.ScrollableHeight)
                 {
-                    next = RootScrollViewer.ScrollableHeight;
+                    next = FieldsScrollViewer.ScrollableHeight;
                 }
 
-                RootScrollViewer.ScrollToVerticalOffset(next);
+                FieldsScrollViewer.ScrollToVerticalOffset(next);
                 e.Handled = true;
             }
         }
 
         private void BoundSettingsOnPropertyChanged(object o, System.ComponentModel.PropertyChangedEventArgs e)
         {
+            if (attaching || boundSettings == null || boundSettings.SuppressSettingsViewRebuilds)
+            {
+                return;
+            }
+
             if (e.PropertyName == nameof(GameHoverDetailsSettings.SelectedFieldKeys) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.DisabledFieldKeysOrder) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.SelectedFieldCount))
             {
                 RefreshFieldsList();
                 RefreshAddCombo();
-                RefreshPreviewFields();
+                QueuePreviewRefresh();
                 return;
             }
 
@@ -309,23 +392,74 @@ namespace GameHoverDetails
                     boundSettings.ApplyThemeColorsToPickers();
                 }
 
-                RefreshPreviewFields();
-                ApplyPreviewChrome();
+                QueuePreviewRefresh();
+                return;
+            }
+
+            if (e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconStyle) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconFontFamily))
+            {
+                RefreshFieldsList();
+                RefreshAddCombo();
+                QueuePreviewRefresh();
                 return;
             }
 
             if (e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldTitlesInHover) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitlesInHover) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.ShowFieldInlineIconsInHover) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HideIconChipBackground) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.ShowIconChipBackground) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldDividers) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.ShowFieldDividers) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HidePanelBorder) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.ShowPanelBorder) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldBlockSpacingDip) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverContentPaddingDip) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverWidth) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundHex) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBorderHex) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeDividerHex) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeIconBackgroundHex) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundOpacity))
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundOpacity) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverBackgroundStyle) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverBackgroundStyleIndex) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.UseGameBackground) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverBodyFontSize) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitleFontSize) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconChipSizeDip) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconChipPaddingDip) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconChipOuterSizeDip) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconChipShape) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconGlyphFontSize) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverBodyLineHeight) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitleLineHeight))
             {
-                RefreshPreviewFields();
-                ApplyPreviewChrome();
+                QueuePreviewRefresh();
             }
+        }
+
+        private void QueuePreviewRefresh()
+        {
+            if (previewRefreshQueued || attaching || boundSettings == null || boundSettings.SuppressSettingsViewRebuilds)
+            {
+                return;
+            }
+
+            previewRefreshQueued = true;
+            Dispatcher.BeginInvoke(
+                (Action)(() =>
+                {
+                    previewRefreshQueued = false;
+                    if (boundSettings == null || attaching || boundSettings.SuppressSettingsViewRebuilds)
+                    {
+                        return;
+                    }
+
+                    RefreshPreviewFields();
+                    ApplyPreviewChrome();
+                }),
+                DispatcherPriority.Background);
         }
 
         private void RefreshPreviewFields()
@@ -340,8 +474,10 @@ namespace GameHoverDetails
             var showTitles = boundSettings.HoverTitlesInHover;
             var api = boundSettings.TryGetPlayniteApi();
             var game = previewSampleGame;
-            var previewChromeWidth = System.Math.Min(216, System.Math.Max(120, boundSettings.HoverWidth));
-            const double chromeHorizontalPadding = 28.0;
+            var previewCap = boundSettings.PreviewChromeMaxWidth;
+            var previewChromeWidth = System.Math.Min(previewCap, System.Math.Max(120, boundSettings.ResolveHoverPanelWidth()));
+            var pad = ClampPreviewContentPaddingDip(boundSettings.HoverContentPaddingDip);
+            var chromeHorizontalPadding = pad * 2.0;
             var previewInnerContentWidth = System.Math.Max(48.0, previewChromeWidth - chromeHorizontalPadding);
             var separatorPad = spacing * 0.5;
             var palette = HoverChromePalette.Resolve(boundSettings);
@@ -354,7 +490,7 @@ namespace GameHoverDetails
                 var isLastBlock = i == keyList.Count - 1;
 
                 var displayName = HoverFieldCatalog.GetDisplayName(key);
-                var glyph = HoverFieldCatalog.GetSettingsGlyph(key);
+                var glyph = HoverFieldCatalog.GetGlyph(key, boundSettings.HoverIconStyle);
                 var inline = showGlyph && !HoverFieldCatalog.IsGameArtImageField(key);
                 var showFieldTitleRow = showTitles && !HoverFieldCatalog.IsGameArtImageField(key);
                 var showTopSeparator = i > 0;
@@ -365,7 +501,7 @@ namespace GameHoverDetails
                 {
                     if (HoverFieldCatalog.IsGameArtImageField(key))
                     {
-                        art = HoverBitmapLoader.TryLoadGameArt(key, game, api);
+                        art = GetCachedPreviewArt(key, game, api);
                         if (key == "Icon" && art == null)
                         {
                             art = TryLoadFallbackLibraryGameIcon(api, game);
@@ -409,15 +545,31 @@ namespace GameHoverDetails
                     previewInnerContentWidth,
                     showBesideName,
                     besideName,
-                    palette));
+                    palette,
+                    boundSettings));
             }
 
             PreviewFieldsList.ItemsSource = rows;
         }
 
+        private ImageSource GetCachedPreviewArt(string fieldKey, Game game, IPlayniteAPI api)
+        {
+            if (previewArtByField.TryGetValue(fieldKey, out var cached))
+            {
+                return cached;
+            }
+
+            var art = HoverBitmapLoader.TryLoadGameArt(fieldKey, game, api);
+            previewArtByField[fieldKey] = art;
+            return art;
+        }
+
+        private const int MaxFallbackArtLoads = 8;
+        private const int MaxSampleGameScan = 80;
+
         /// <summary>
-        /// When the preview game has no usable icon, pick a random other library game that has an icon path and load it.
-        /// Cached for the life of the settings view so Save / slider churn does not scan the whole library again.
+        /// When the preview game has no usable icon, try a few other library games that have an icon path.
+        /// Cached for the life of the settings view so slider churn does not hit disk again.
         /// </summary>
         private ImageSource TryLoadFallbackLibraryGameIcon(IPlayniteAPI api, Game previewGame)
         {
@@ -426,76 +578,72 @@ namespace GameHoverDetails
                 return cachedFallbackIcon;
             }
 
+            cachedFallbackIcon = TryLoadFirstLibraryArt(api, previewGame, "Icon");
+            return cachedFallbackIcon;
+        }
+
+        private ImageSource TryLoadFirstLibraryArt(IPlayniteAPI api, Game skipGame, string fieldKey)
+        {
             if (api?.Database?.Games == null)
             {
                 return null;
             }
 
-            var rng = new Random(Environment.TickCount ^ unchecked((int)0x9E3779B9));
-            Game donor = null;
-            var n = 0;
+            var attempts = 0;
             foreach (var g in api.Database.Games)
             {
-                if (g == null || string.IsNullOrWhiteSpace(g.Icon))
+                if (g == null)
                 {
                     continue;
                 }
 
-                if (previewGame != null && g.Id == previewGame.Id)
+                if (skipGame != null && g.Id == skipGame.Id)
                 {
                     continue;
                 }
 
-                n++;
-                if (rng.Next(n) == 0)
+                string path;
+                switch (fieldKey)
                 {
-                    donor = g;
+                    case "Icon":
+                        path = g.Icon;
+                        break;
+                    case "CoverImage":
+                        path = g.CoverImage;
+                        break;
+                    case "BackgroundImage":
+                        path = g.BackgroundImage;
+                        break;
+                    default:
+                        path = g.BackgroundImage;
+                        break;
                 }
-            }
 
-            if (donor != null)
-            {
-                var bmp = HoverBitmapLoader.TryLoadGameArt("Icon", donor, api);
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    continue;
+                }
+
+                var bmp = HoverBitmapLoader.TryLoadGameArt(fieldKey, g, api);
                 if (bmp != null)
                 {
-                    cachedFallbackIcon = bmp;
                     return bmp;
                 }
-            }
 
-            foreach (var g in api.Database.Games)
-            {
-                if (g == null || string.IsNullOrWhiteSpace(g.Icon))
+                attempts++;
+                if (attempts >= MaxFallbackArtLoads)
                 {
-                    continue;
-                }
-
-                if (previewGame != null && g.Id == previewGame.Id)
-                {
-                    continue;
-                }
-
-                if (donor != null && g.Id == donor.Id)
-                {
-                    continue;
-                }
-
-                var b = HoverBitmapLoader.TryLoadGameArt("Icon", g, api);
-                if (b != null)
-                {
-                    cachedFallbackIcon = b;
-                    return b;
+                    return null;
                 }
             }
 
             return null;
         }
 
-        /// <summary>Uniform random game, O(1) extra memory (reservoir).</summary>
+        /// <summary>First library game with usable art metadata; does not walk the whole library.</summary>
         private void TryPickPreviewSampleGame()
         {
-            previewSampleGame = null;
-            if (boundSettings == null)
+            if (previewSampleGame != null || boundSettings == null)
             {
                 return;
             }
@@ -509,9 +657,10 @@ namespace GameHoverDetails
 
             try
             {
-                var rng = new Random(Environment.TickCount);
-                Game chosen = null;
-                var n = 0;
+                var preferFanart = boundSettings.IsGameCoverBackgroundStyle;
+                Game firstAny = null;
+                Game withArt = null;
+                var scanned = 0;
                 foreach (var g in games)
                 {
                     if (g == null)
@@ -519,14 +668,29 @@ namespace GameHoverDetails
                         continue;
                     }
 
-                    n++;
-                    if (rng.Next(n) == 0)
+                    if (firstAny == null)
                     {
-                        chosen = g;
+                        firstAny = g;
+                    }
+
+                    var hasFanart = !string.IsNullOrWhiteSpace(g.BackgroundImage);
+                    var hasCover = !string.IsNullOrWhiteSpace(g.CoverImage);
+                    var hasIcon = !string.IsNullOrWhiteSpace(g.Icon);
+                    if (preferFanart ? hasFanart : (hasIcon || hasCover))
+                    {
+                        withArt = g;
+                        break;
+                    }
+
+                    scanned++;
+                    if (scanned >= MaxSampleGameScan)
+                    {
+                        break;
                     }
                 }
 
-                previewSampleGame = n > 0 ? chosen : null;
+                previewSampleGame = withArt ?? firstAny;
+                previewArtByField.Clear();
             }
             catch
             {
@@ -543,9 +707,44 @@ namespace GameHoverDetails
 
             var keys = boundSettings.SelectedFieldKeys;
             var n = keys.Count;
+            var style = boundSettings.HoverIconStyle;
             FieldsList.ItemsSource = keys
-                .Select((k, i) => new EnabledFieldRow(k, HoverFieldCatalog.GetDisplayName(k), i, n))
+                .Select((k, i) => new EnabledFieldRow(k, HoverFieldCatalog.GetDisplayName(k), i, n, style))
                 .ToList();
+        }
+
+        private void EnsureAddFieldSearchHooked()
+        {
+            if (addFieldTextHandlerAttached || AddFieldCombo == null)
+            {
+                return;
+            }
+
+            AddFieldCombo.AddHandler(
+                TextBox.TextChangedEvent,
+                new TextChangedEventHandler(AddFieldCombo_TextChanged),
+                true);
+            addFieldTextHandlerAttached = true;
+        }
+
+        private static bool MatchesAddFieldSearch(AddFieldOption option, string filter)
+        {
+            if (option == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(filter))
+            {
+                return true;
+            }
+
+            if (option.DisplayName.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            return option.Key.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private void RefreshAddCombo()
@@ -561,10 +760,22 @@ namespace GameHoverDetails
             }
 
             suppressAddComboSelectionChanged = true;
+            suppressAddFieldTextChanged = true;
             try
             {
-                var desired = boundSettings.GetAddableKeys()
-                    .Select(k => new AddFieldOption(k, HoverFieldCatalog.GetDisplayName(k)))
+                var style = boundSettings.HoverIconStyle;
+                if (addFieldComboItems.Count > 0 &&
+                    !string.Equals(addFieldComboItems[0].IconStyle, style, StringComparison.Ordinal))
+                {
+                    addFieldComboItems.Clear();
+                }
+
+                var filter = (addFieldSearchText ?? string.Empty).Trim();
+                var addable = boundSettings.GetAddableKeys()
+                    .Select(k => new AddFieldOption(k, HoverFieldCatalog.GetDisplayName(k), style))
+                    .ToList();
+                var desired = addable
+                    .Where(o => MatchesAddFieldSearch(o, filter))
                     .OrderBy(o => o.DisplayName, StringComparer.CurrentCultureIgnoreCase)
                     .ToList();
 
@@ -600,12 +811,89 @@ namespace GameHoverDetails
                 }
 
                 AddFieldCombo.SelectedIndex = -1;
-                AddFieldCombo.IsEnabled = addFieldComboItems.Count > 0;
+                AddFieldCombo.IsEnabled = addable.Count > 0;
+                if (!string.Equals(AddFieldCombo.Text ?? string.Empty, addFieldSearchText ?? string.Empty, StringComparison.Ordinal))
+                {
+                    AddFieldCombo.Text = addFieldSearchText ?? string.Empty;
+                }
+
+                UpdateAddFieldSearchHint();
             }
             finally
             {
+                suppressAddFieldTextChanged = false;
                 suppressAddComboSelectionChanged = false;
             }
+        }
+
+        private void UpdateAddFieldSearchHint()
+        {
+            if (AddFieldSearchHint == null)
+            {
+                return;
+            }
+
+            AddFieldSearchHint.Visibility = string.IsNullOrEmpty(addFieldSearchText)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        private void OpenAddFieldSelector()
+        {
+            if (AddFieldCombo == null || !AddFieldCombo.IsEnabled)
+            {
+                return;
+            }
+
+            RefreshAddCombo();
+            if (!AddFieldCombo.IsDropDownOpen)
+            {
+                AddFieldCombo.IsDropDownOpen = true;
+            }
+        }
+
+        private void AddFieldCombo_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (suppressAddComboSelectionChanged || suppressAddFieldTextChanged || attaching || AddFieldCombo == null)
+            {
+                return;
+            }
+
+            var text = AddFieldCombo.Text ?? string.Empty;
+            if (string.Equals(text, addFieldSearchText, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            addFieldSearchText = text;
+            UpdateAddFieldSearchHint();
+            RefreshAddCombo();
+            if (AddFieldCombo.IsEnabled && !AddFieldCombo.IsDropDownOpen)
+            {
+                AddFieldCombo.IsDropDownOpen = true;
+            }
+        }
+
+        private void ClearAddFieldSearch()
+        {
+            addFieldSearchText = string.Empty;
+            if (AddFieldCombo == null)
+            {
+                return;
+            }
+
+            suppressAddFieldTextChanged = true;
+            try
+            {
+                AddFieldCombo.Text = string.Empty;
+            }
+            finally
+            {
+                suppressAddFieldTextChanged = false;
+            }
+
+            UpdateAddFieldSearchHint();
+            RefreshAddCombo();
         }
 
         /// <summary>
@@ -613,8 +901,14 @@ namespace GameHoverDetails
         /// </summary>
         private void AddFieldCombo_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (suppressAddComboSelectionChanged || boundSettings == null || AddFieldCombo == null || !AddFieldCombo.IsDropDownOpen)
+            if (suppressAddComboSelectionChanged || boundSettings == null || AddFieldCombo == null)
             {
+                return;
+            }
+
+            if (e.Key == Key.Escape)
+            {
+                ClearAddFieldSearch();
                 return;
             }
 
@@ -623,7 +917,8 @@ namespace GameHoverDetails
                 return;
             }
 
-            if (!(AddFieldCombo.SelectedItem is AddFieldOption opt))
+            var opt = AddFieldCombo.SelectedItem as AddFieldOption ?? addFieldComboItems.FirstOrDefault();
+            if (opt == null)
             {
                 return;
             }
@@ -663,9 +958,71 @@ namespace GameHoverDetails
             e.Handled = true;
         }
 
+        private void AddFieldCombo_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (FindAncestor<ComboBoxItem>(e.OriginalSource as DependencyObject) != null)
+            {
+                return;
+            }
+
+            OpenAddFieldSelector();
+        }
+
+        private void AddFieldCombo_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (FindAncestor<ComboBoxItem>(e.NewFocus as DependencyObject) != null)
+            {
+                return;
+            }
+
+            OpenAddFieldSelector();
+        }
+
+        private static T FindAncestor<T>(DependencyObject start) where T : DependencyObject
+        {
+            var current = start;
+            while (current != null)
+            {
+                if (current is T match)
+                {
+                    return match;
+                }
+
+                current = VisualTreeHelper.GetParent(current);
+            }
+
+            return null;
+        }
+
+        private void AddFieldCombo_DropDownOpened(object sender, EventArgs e)
+        {
+            if (AddFieldCombo == null)
+            {
+                return;
+            }
+
+            RefreshAddCombo();
+            Dispatcher.BeginInvoke(
+                (Action)(() =>
+                {
+                    if (AddFieldCombo.Template.FindName("PART_EditableTextBox", AddFieldCombo) is TextBox box)
+                    {
+                        box.Focus();
+                        box.CaretIndex = box.Text != null ? box.Text.Length : 0;
+                    }
+                }),
+                DispatcherPriority.Input);
+        }
+
         private void AddFieldCombo_DropDownClosed(object sender, EventArgs e)
         {
             addFieldComboItemHandledMouseDown = false;
+            if (keepAddFieldSearchOnClose || (AddFieldCombo != null && AddFieldCombo.IsKeyboardFocusWithin))
+            {
+                return;
+            }
+
+            ClearAddFieldSearch();
         }
 
         /// <summary>
@@ -700,6 +1057,7 @@ namespace GameHoverDetails
                 return;
             }
 
+            keepAddFieldSearchOnClose = true;
             boundSettings.EnableFieldAt(opt.Key, boundSettings.SelectedFieldKeys.Count);
 
             if (AddFieldCombo != null && addFieldComboItems.Count > 0)
@@ -708,6 +1066,9 @@ namespace GameHoverDetails
             }
 
             ScheduleReopenAddFieldDropDownIfNeeded();
+            Dispatcher.BeginInvoke(
+                (Action)(() => keepAddFieldSearchOnClose = false),
+                DispatcherPriority.ApplicationIdle);
         }
 
         private void EnabledMoveUp_Click(object sender, RoutedEventArgs e)
@@ -757,7 +1118,89 @@ namespace GameHoverDetails
                 return;
             }
 
-            HoverChromePalette.ApplyToChromeBorder(PreviewChromeBorder, boundSettings);
+            var cover = boundSettings.IsGameCoverBackgroundStyle ? TryLoadPreviewCover() : null;
+            var coverActive = cover != null;
+            if (PreviewCoverImage != null)
+            {
+                PreviewCoverImage.Source = cover;
+                PreviewCoverImage.Visibility = coverActive ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (PreviewCoverTint != null)
+            {
+                PreviewCoverTint.Background = HoverChromePalette.CoverTintBrush;
+                var tintOpacity = boundSettings.HoverChromeBackgroundOpacity / 100.0;
+                if (tintOpacity < 0)
+                {
+                    tintOpacity = 0;
+                }
+                else if (tintOpacity > 1)
+                {
+                    tintOpacity = 1;
+                }
+
+                PreviewCoverTint.Opacity = tintOpacity;
+                PreviewCoverTint.Visibility = coverActive ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            HoverChromePalette.ApplyToChromeBorder(PreviewChromeBorder, boundSettings, coverActive);
+            PreviewChromeBorder.MaxHeight = double.PositiveInfinity;
+            PreviewChromeBorder.MinHeight = 0;
+            if (PreviewFieldsList != null)
+            {
+                var pad = ClampPreviewContentPaddingDip(boundSettings.HoverContentPaddingDip);
+                PreviewFieldsList.Margin = new Thickness(pad, pad, pad, pad);
+                PreviewFieldsList.VerticalAlignment = VerticalAlignment.Top;
+            }
+
+            UpdatePreviewCoverClip();
+        }
+
+        private void PreviewChromeBodyOnSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdatePreviewCoverClip();
+        }
+
+        private void UpdatePreviewCoverClip()
+        {
+            if (PreviewChromeBody == null)
+            {
+                return;
+            }
+
+            var w = PreviewChromeBody.ActualWidth;
+            var h = PreviewChromeBody.ActualHeight;
+            if (w <= 0 || h <= 0)
+            {
+                PreviewChromeBody.Clip = null;
+                return;
+            }
+
+            PreviewChromeBody.Clip = new RectangleGeometry(new Rect(0, 0, w, h), 7, 7);
+        }
+
+        private ImageSource TryLoadPreviewCover()
+        {
+            if (cachedPreviewCover != null)
+            {
+                return cachedPreviewCover;
+            }
+
+            var api = boundSettings?.TryGetPlayniteApi();
+            if (api == null)
+            {
+                return null;
+            }
+
+            var bmp = HoverBitmapLoader.TryLoadGameArt("BackgroundImage", previewSampleGame, api, 720);
+            if (bmp != null)
+            {
+                cachedPreviewCover = bmp;
+                return bmp;
+            }
+
+            cachedPreviewCover = TryLoadFirstLibraryArt(api, previewSampleGame, "BackgroundImage");
+            return cachedPreviewCover;
         }
 
         private void BackgroundSwatch_Click(object sender, RoutedEventArgs e)
@@ -786,6 +1229,19 @@ namespace GameHoverDetails
             }
         }
 
+        private void DividerSwatch_Click(object sender, RoutedEventArgs e)
+        {
+            if (boundSettings == null)
+            {
+                return;
+            }
+
+            if (TryPickHexColor(boundSettings.HoverChromeDividerHex, out var hex))
+            {
+                boundSettings.HoverChromeDividerHex = hex;
+            }
+        }
+
         private void IconBackgroundSwatch_Click(object sender, RoutedEventArgs e)
         {
             if (boundSettings == null)
@@ -802,6 +1258,18 @@ namespace GameHoverDetails
         private void ResetChromeColors_Click(object sender, RoutedEventArgs e)
         {
             boundSettings?.ResetCustomChromeColors();
+        }
+
+        private static int ClampPreviewContentPaddingDip(int pad)
+        {
+            if (pad < GameHoverDetailsSettings.MinContentPaddingDip)
+            {
+                return GameHoverDetailsSettings.MinContentPaddingDip;
+            }
+
+            return pad > GameHoverDetailsSettings.MaxContentPaddingDip
+                ? GameHoverDetailsSettings.MaxContentPaddingDip
+                : pad;
         }
 
         private static bool TryPickHexColor(string currentHex, out string hex)
