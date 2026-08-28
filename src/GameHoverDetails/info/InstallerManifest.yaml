@@ -5,7 +5,7 @@ Packages:
     ReleaseDate: 2026-08-28
     PackageUrl: https://github.com/danitesler/playnite-extensions/releases/download/gamehoverdetails-v1.1.0/GameHoverDetails_BA249C5D_1_1_0.pext
     Changelog:
-      - Display tab: text sizes, optional titles, and inline field icons
+      - "Display tab: text sizes, optional titles, and inline field icons"
       - Phosphor, Unicons, and Huge Icons families with size, padding, and chip shapes
       - Independent border and divider colors
       - Game background fanart with opacity tint
