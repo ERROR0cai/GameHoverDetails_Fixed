@@ -36,15 +36,6 @@
       <Link>fonts\LICENSE-HugeIcons.txt</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <Resource Include="fonts\Phosphor.ttf">
-      <Link>fonts\Phosphor.ttf</Link>
-    </Resource>
-    <Resource Include="fonts\Unicons-Line.ttf">
-      <Link>fonts\Unicons-Line.ttf</Link>
-    </Resource>
-    <Resource Include="fonts\HugeIcons-StrokeRounded.ttf">
-      <Link>fonts\HugeIcons-StrokeRounded.ttf</Link>
-    </Resource>
     <None Include="Localization\*.xaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

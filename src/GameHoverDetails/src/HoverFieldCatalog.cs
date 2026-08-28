@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows.Media;
+using Playnite.SDK;
 
 namespace GameHoverDetails
 {
@@ -84,7 +85,7 @@ namespace GameHoverDetails
         private static FontFamily uniconsFontFamily;
         private static FontFamily hugeIconsFontFamily;
 
-        /// <summary>Default catalog glyph family (Unicons). TTFs are WPF resources in the DLL and also copied next to it.</summary>
+        /// <summary>Default catalog glyph family (Unicons). TTFs are copied next to the DLL under fonts\.</summary>
         public static FontFamily GlyphFontFamily => GetGlyphFontFamily(GameHoverDetailsSettings.IconStyleUnicons);
 
         public static FontFamily GetGlyphFontFamily(string style)
@@ -118,6 +119,8 @@ namespace GameHoverDetails
             return phosphorFontFamily;
         }
 
+        private static readonly HashSet<string> LoggedMissingFonts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         private static FontFamily LoadPackagedFont(string fileName, string familyName)
         {
             // Pin the TTF file in the face name. `./#FamilyName` against a folder of
@@ -134,8 +137,12 @@ namespace GameHoverDetails
                 }
             }
 
-            return new FontFamily(
-                "pack://application:,,,/GameHoverDetails;component/fonts/" + fileName + "#" + familyName);
+            if (LoggedMissingFonts.Add(fileName))
+            {
+                LogManager.GetLogger().Warn("GameHoverDetails icon font missing: " + fileName);
+            }
+
+            return new FontFamily("Segoe UI Symbol");
         }
 
         private static string GetPluginDirectory()
@@ -173,161 +180,74 @@ namespace GameHoverDetails
             return HoverLoc.Get("LOCGameHoverDetails_Field_" + key, fallback);
         }
 
+        private sealed class GlyphFaces
+        {
+            public GlyphFaces(string phosphor, string unicons, string hugeIcons)
+            {
+                Phosphor = phosphor;
+                Unicons = unicons;
+                HugeIcons = hugeIcons;
+            }
+
+            public string Phosphor { get; }
+            public string Unicons { get; }
+            public string HugeIcons { get; }
+        }
+
+        /// <summary>Phosphor, Unicons Line, Huge Icons Stroke Rounded (catalog subset).</summary>
+        private static readonly Dictionary<string, GlyphFaces> Glyphs = new Dictionary<string, GlyphFaces>
+        {
+            { "Icon", new GlyphFaces("\uE5DA", "\uEA54", "\u4197") },
+            { "CoverImage", new GlyphFaces("\uE2CA", "\uEA55", "\u4198") },
+            { "BackgroundImage", new GlyphFaces("\uEAA2", "\uEA57", "\u419C") },
+            { "Name", new GlyphFaces("\uE48A", "\uEBE4", "\u48D5") },
+            { "Description", new GlyphFaces("\uE0A8", "\uE94B", "\u3FF9") },
+            { "Platform", new GlyphFaces("\uE26E", "\uEAF9", "\u40A4") },
+            { "Genre", new GlyphFaces("\uE2F4", "\uE890", "\u488C") },
+            { "Developer", new GlyphFaces("\uE1BC", "\uEC50", "\u4789") },
+            { "Publisher", new GlyphFaces("\uE102", "\uEB1D", "\u3CCA") },
+            { "Category", new GlyphFaces("\uE260", "\uEABF", "\u4061") },
+            { "Tags", new GlyphFaces("\uE478", "\uE893", "\u488E") },
+            { "Features", new GlyphFaces("\uE6A2", "\uE84E", "\u478E") },
+            { "Series", new GlyphFaces("\uE466", "\uE99F", "\u424F") },
+            { "Region", new GlyphFaces("\uE288", "\uE9AA", "\u40CA") },
+            { "AgeRating", new GlyphFaces("\uE40C", "\uEBFA", "\u46E0") },
+            { "Version", new GlyphFaces("\uE278", "\uEC7F", "\u40B6") },
+            { "Notes", new GlyphFaces("\uE348", "\uE8FC", "\u447F") },
+            { "InstallationFolder", new GlyphFaces("\uE24A", "\uEC51", "\u4062") },
+            { "InstallSize", new GlyphFaces("\uE2A0", "\uEACB", "\u4123") },
+            { "ReleaseDate", new GlyphFaces("\uE108", "\uE8DC", "\u3CE4") },
+            { "DateAdded", new GlyphFaces("\uE714", "\uE8DB", "\u3CE8") },
+            { "TimePlayed", new GlyphFaces("\uE19A", "\uE920", "\u3E05") },
+            { "RecentActivity", new GlyphFaces("\uE1A0", "\uEAD8", "\u4918") },
+            { "LastPlayed", new GlyphFaces("\uE19E", "\uE92C", "\u3E06") },
+            { "CompletionStatus", new GlyphFaces("\uE184", "\uE9C2", "\u3DA6") },
+            { "UserScore", new GlyphFaces("\uE46A", "\uE9AB", "\u47E3") },
+            { "CriticScore", new GlyphFaces("\uE320", "\uE901", "\u3BBA") },
+            { "CommunityScore", new GlyphFaces("\uE68E", "\uEA11", "\u49CD") },
+            { "Source", new GlyphFaces("\uE470", "\uE97D", "\u4289") },
+            { "Library", new GlyphFaces("\uE758", "\uE92E", "\u3C5B") },
+            { "Links", new GlyphFaces("\uE2E2", "\uEBB8", "\u4293") }
+        };
+
+        private static readonly GlyphFaces DefaultGlyphs = new GlyphFaces("\uE2CE", "\uE859", "\u4197");
+
         /// <summary>Glyph for the current icon style (settings list, Add field, hover chips).</summary>
         public static string GetGlyph(string key, string style)
         {
+            var faces = Glyphs.TryGetValue(key ?? string.Empty, out var mapped) ? mapped : DefaultGlyphs;
             var norm = GameHoverDetailsSettings.NormalizeIconStyle(style);
             if (string.Equals(norm, GameHoverDetailsSettings.IconStyleUnicons, StringComparison.Ordinal))
             {
-                return GetUniconsGlyph(key);
+                return faces.Unicons;
             }
 
             if (string.Equals(norm, GameHoverDetailsSettings.IconStyleHugeIcons, StringComparison.Ordinal))
             {
-                return GetHugeIconsGlyph(key);
+                return faces.HugeIcons;
             }
 
-            return GetPhosphorGlyph(key);
-        }
-
-        /// <summary>Phosphor Regular PUA glyph (@phosphor-icons/web 2.1.2).</summary>
-        public static string GetSettingsGlyph(string key)
-        {
-            return GetPhosphorGlyph(key);
-        }
-
-        private static string GetPhosphorGlyph(string key)
-        {
-            if (string.IsNullOrEmpty(key))
-            {
-                return "\uE2CE";
-            }
-
-            switch (key)
-            {
-                case "Icon": return "\uE5DA";
-                case "CoverImage": return "\uE2CA";
-                case "BackgroundImage": return "\uEAA2";
-                case "Name": return "\uE48A";
-                case "Description": return "\uE0A8";
-                case "Platform": return "\uE26E";
-                case "Genre": return "\uE2F4";
-                case "Developer": return "\uE1BC";
-                case "Publisher": return "\uE102";
-                case "Category": return "\uE260";
-                case "Tags": return "\uE478";
-                case "Features": return "\uE6A2";
-                case "Series": return "\uE466";
-                case "Region": return "\uE288";
-                case "AgeRating": return "\uE40C";
-                case "Version": return "\uE278";
-                case "Notes": return "\uE348";
-                case "InstallationFolder": return "\uE24A";
-                case "InstallSize": return "\uE2A0";
-                case "ReleaseDate": return "\uE108";
-                case "DateAdded": return "\uE714";
-                case "TimePlayed": return "\uE19A";
-                case "RecentActivity": return "\uE1A0";
-                case "LastPlayed": return "\uE19E";
-                case "CompletionStatus": return "\uE184";
-                case "UserScore": return "\uE46A";
-                case "CriticScore": return "\uE320";
-                case "CommunityScore": return "\uE68E";
-                case "Source": return "\uE470";
-                case "Library": return "\uE758";
-                case "Links": return "\uE2E2";
-                default: return "\uE2CE";
-            }
-        }
-
-        /// <summary>Unicons Line PUA glyph (IconScout Simple License, catalog subset).</summary>
-        private static string GetUniconsGlyph(string key)
-        {
-            if (string.IsNullOrEmpty(key))
-            {
-                return "\uE859";
-            }
-
-            switch (key)
-            {
-                case "Icon": return "\uEA54";
-                case "CoverImage": return "\uEA55";
-                case "BackgroundImage": return "\uEA57";
-                case "Name": return "\uEBE4";
-                case "Description": return "\uE94B";
-                case "Platform": return "\uEAF9";
-                case "Genre": return "\uE890";
-                case "Developer": return "\uEC50";
-                case "Publisher": return "\uEB1D";
-                case "Category": return "\uEABF";
-                case "Tags": return "\uE893";
-                case "Features": return "\uE84E";
-                case "Series": return "\uE99F";
-                case "Region": return "\uE9AA";
-                case "AgeRating": return "\uEBFA";
-                case "Version": return "\uEC7F";
-                case "Notes": return "\uE8FC";
-                case "InstallationFolder": return "\uEC51";
-                case "InstallSize": return "\uEACB";
-                case "ReleaseDate": return "\uE8DC";
-                case "DateAdded": return "\uE8DB";
-                case "TimePlayed": return "\uE920";
-                case "RecentActivity": return "\uEAD8";
-                case "LastPlayed": return "\uE92C";
-                case "CompletionStatus": return "\uE9C2";
-                case "UserScore": return "\uE9AB";
-                case "CriticScore": return "\uE901";
-                case "CommunityScore": return "\uEA11";
-                case "Source": return "\uE97D";
-                case "Library": return "\uE92E";
-                case "Links": return "\uEBB8";
-                default: return "\uE859";
-            }
-        }
-
-        /// <summary>Huge Icons Stroke Rounded (MIT, catalog subset).</summary>
-        private static string GetHugeIconsGlyph(string key)
-        {
-            if (string.IsNullOrEmpty(key))
-            {
-                return "\u4197";
-            }
-
-            switch (key)
-            {
-                case "Icon": return "\u4197";
-                case "CoverImage": return "\u4198";
-                case "BackgroundImage": return "\u419C";
-                case "Name": return "\u48D5";
-                case "Description": return "\u3FF9";
-                case "Platform": return "\u40A4";
-                case "Genre": return "\u488C";
-                case "Developer": return "\u4789";
-                case "Publisher": return "\u3CCA";
-                case "Category": return "\u4061";
-                case "Tags": return "\u488E";
-                case "Features": return "\u478E";
-                case "Series": return "\u424F";
-                case "Region": return "\u40CA";
-                case "AgeRating": return "\u46E0";
-                case "Version": return "\u40B6";
-                case "Notes": return "\u447F";
-                case "InstallationFolder": return "\u4062";
-                case "InstallSize": return "\u4123";
-                case "ReleaseDate": return "\u3CE4";
-                case "DateAdded": return "\u3CE8";
-                case "TimePlayed": return "\u3E05";
-                case "RecentActivity": return "\u4918";
-                case "LastPlayed": return "\u3E06";
-                case "CompletionStatus": return "\u3DA6";
-                case "UserScore": return "\u47E3";
-                case "CriticScore": return "\u3BBA";
-                case "CommunityScore": return "\u49CD";
-                case "Source": return "\u4289";
-                case "Library": return "\u3C5B";
-                case "Links": return "\u4293";
-                default: return "\u4197";
-            }
+            return faces.Phosphor;
         }
 
         public static int CompareKeys(string a, string b)

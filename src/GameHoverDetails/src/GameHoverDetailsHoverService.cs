@@ -1,6 +1,4 @@
 using System;
-using System.Globalization;
-using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -49,44 +47,9 @@ namespace GameHoverDetails
         private const double EnterAnimationMs = 80;
         private const double HideDebounceMs = 70;
 
-        private FontFamily HoverFieldInlineIconFontFamily => HoverFieldCatalog.GetGlyphFontFamily(settings.HoverIconStyle);
-
-        private const double LabelToValueGapDip = 4;
-        private const double FirstBlockHeaderTopDip = 0;
-        private const double StatRowGlyphToTextGapDip = 10;
-
-        private double GlyphChipSizeDip()
-        {
-            var s = settings.HoverIconChipOuterSizeDip;
-            if (s < GameHoverDetailsSettings.MinIconChipSizeDip)
-            {
-                return GameHoverDetailsSettings.MinIconChipSizeDip;
-            }
-
-            return s;
-        }
-
-        private double GlyphChipGlyphFontSize() => settings.HoverIconGlyphFontSize;
         private const double ChromeCornerRadiusDip = 8;
         private const double FrostBlurRadius = 24;
         private const int FanartBackgroundDecodePx = 960;
-
-        /// <summary>Half of field block spacing: used above and below each divider and as top/bottom inset per block so the spacing slider affects both sides.</summary>
-        private double FieldBlockSpacingHalfDip()
-        {
-            return FieldBlockSpacingDip() * 0.5;
-        }
-
-        private double FieldBlockSpacingDip()
-        {
-            var s = settings.HoverFieldBlockSpacingDip;
-            if (s < 4)
-            {
-                return 4;
-            }
-
-            return s > 36 ? 36 : s;
-        }
 
         private readonly Window mainWindow;
         private readonly IPlayniteAPI playniteApi;
@@ -103,8 +66,7 @@ namespace GameHoverDetails
         private Border chromeRoot;
         private Border chromeBorder;
         private Grid chromeBody;
-        private Canvas coverHost;
-        private Image coverImage;
+        private Border coverHost;
         private Border coverTint;
         private Guid? lastCoverGameId;
         private Border frostHost;
@@ -141,7 +103,7 @@ namespace GameHoverDetails
             }
 
             settingsNotifyQueued = true;
-            dispatcher.BeginInvoke(new Action(FlushSettingsChanged), DispatcherPriority.DataBind);
+            dispatcher.BeginInvoke(new Action(FlushSettingsChanged), DispatcherPriority.ApplicationIdle);
         }
 
         private void FlushSettingsChanged()
@@ -171,19 +133,17 @@ namespace GameHoverDetails
                 return;
             }
 
+            lastBuiltFieldsFingerprint = null;
+
+            // Settings Save closes a modal dialog. Do not decode fanart or rebuild
+            // chrome while the popup is closed — that froze Playnite for seconds.
+            if (popup == null || !popup.IsOpen || lastShownGame == null)
+            {
+                return;
+            }
+
             try
             {
-                if (popup != null)
-                {
-                    ApplyChrome();
-                }
-
-                if (popup == null || !popup.IsOpen || lastShownGame == null)
-                {
-                    return;
-                }
-
-                lastBuiltFieldsFingerprint = null;
                 ShowOrUpdatePopup(lastShownGame, lastShownAnchor);
             }
             catch (Exception ex)
@@ -298,7 +258,6 @@ namespace GameHoverDetails
             chromeBorder = null;
             chromeBody = null;
             coverHost = null;
-            coverImage = null;
             coverTint = null;
             lastCoverGameId = null;
             frostHost = null;
@@ -712,6 +671,7 @@ namespace GameHoverDetails
                 chromeFlyTransform.X = 0;
             }
 
+            ClearFrostSnapshot();
             lastShownGame = null;
             lastShownAnchor = null;
             lastBuiltFieldsFingerprint = null;
@@ -797,18 +757,6 @@ namespace GameHoverDetails
                 right = new Point(targetSize.Width + gap + offset.X, offset.Y);
                 left = new Point(-popupW - gap + offset.X, offset.Y);
             }
-            // #region agent log
-            AgentLog("H1", "PlacePopupGridOrDefault", "custom placement candidates",
-                "{\"rtl\":" + (rtl ? "true" : "false")
-                + ",\"popupW\":" + popupW.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"rawPopupW\":" + popupSize.Width.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"targetW\":" + targetSize.Width.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"targetH\":" + targetSize.Height.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"leftX\":" + left.X.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"rightX\":" + right.X.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"hOff\":" + (popup != null ? popup.HorizontalOffset.ToString("0.##", CultureInfo.InvariantCulture) : "0")
-                + ",\"pref\":\"" + (rtl ? "left" : "right") + "\"}");
-            // #endregion
             if (rtl)
             {
                 return new[]
@@ -851,6 +799,7 @@ namespace GameHoverDetails
                 + "\x1e" + (settings.HideFieldDividers ? "1" : "0")
                 + "\x1e" + (settings.HidePanelBorder ? "1" : "0")
                 + "\x1e" + settings.HoverFieldBlockSpacingDip.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + "\x1e" + settings.HoverFieldColumnCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 + "\x1e" + settings.HoverContentPaddingDip.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 + "\x1e" + settings.HoverBodyFontSize.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
                 + "\x1e" + settings.HoverTitleFontSize.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
@@ -870,10 +819,12 @@ namespace GameHoverDetails
                 popup.IsOpen = false;
             }
 
+            chromeBorder.Width = w;
             chromeBorder.MinWidth = w;
             chromeBorder.MaxWidth = w;
             if (chromeRoot != null)
             {
+                chromeRoot.Width = w;
                 chromeRoot.MinWidth = w;
                 chromeRoot.MaxWidth = w;
             }
@@ -881,33 +832,15 @@ namespace GameHoverDetails
 
             if (!canSkipContentRebuild)
             {
-                contentStack.Children.Clear();
-                var onlyIconSelected = orderedKeys.Count == 1 && orderedKeys[0] == "Icon";
-                foreach (var key in orderedKeys)
-                {
-                    var isFirstBlock = contentStack.Children.Count == 0;
-                    switch (key)
-                    {
-                        case "Icon":
-                        case "CoverImage":
-                        case "BackgroundImage":
-                            TryAppendGameArtRow(key, game, innerMax, isFirstBlock, onlyIconSelected);
-                            break;
-                        case "Platform":
-                            AppendPlatformRow(game, key, innerMax, isFirstBlock);
-                            break;
-                        default:
-                            AppendTextDetailRow(key, game, innerMax, isFirstBlock);
-                            break;
-                    }
-                }
-
-                if (!settings.IsGameCoverBackgroundStyle)
-                {
-                    TrimLastContentBottomMargin(contentStack);
-                }
-
+                HoverFieldListBuilder.Fill(
+                    contentStack,
+                    settings,
+                    Palette,
+                    orderedKeys,
+                    innerMax,
+                    HoverFieldListSource.ForLiveGame(game, playniteApi));
                 lastBuiltFieldsFingerprint = fieldsFingerprint;
+                InvalidatePopupToContentHeight();
             }
 
             if (anchor != null && anchor.IsVisible)
@@ -918,15 +851,6 @@ namespace GameHoverDetails
                     && popup.Placement == PlacementMode.Custom;
                 popup.PlacementTarget = anchor;
                 popup.Placement = PlacementMode.Custom;
-                // #region agent log
-                AgentLog("H2", "ShowOrUpdatePopup", "reset offset before custom place",
-                    "{\"sameGameContinue\":" + (sameGameContinue ? "true" : "false")
-                    + ",\"sameAnchorContinue\":" + (sameAnchorContinue ? "true" : "false")
-                    + ",\"wasOpen\":" + (wasOpen ? "true" : "false")
-                    + ",\"prevHOff\":" + popup.HorizontalOffset.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"prevVOff\":" + popup.VerticalOffset.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"gen\":" + (layoutInvokeGeneration + 1).ToString(CultureInfo.InvariantCulture) + "}");
-                // #endregion
                 if (!sameAnchorContinue)
                 {
                     popup.HorizontalOffset = 0;
@@ -981,16 +905,9 @@ namespace GameHoverDetails
 
             try
             {
+                popup.Child.InvalidateMeasure();
                 popup.Child.UpdateLayout();
-                // #region agent log
-                AgentLog("H6", "AfterPopupLayout", "layout pass",
-                    "{\"gen\":" + invokedGeneration.ToString(CultureInfo.InvariantCulture)
-                    + ",\"runAnim\":" + (runEnterAnimation ? "true" : "false")
-                    + ",\"hOff\":" + popup.HorizontalOffset.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"vOff\":" + popup.VerticalOffset.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"childW\":" + popup.Child.RenderSize.Width.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"rtl\":" + (HoverLoc.IsRightToLeftLayout(playniteApi, mainWindow) ? "true" : "false") + "}");
-                // #endregion
+                NudgePopupToApplyNewSize();
                 NudgeRtlPopupOutsideAnchor();
                 ClampPopupToVirtualScreen();
                 UpdateFrostBackdrop();
@@ -1041,6 +958,22 @@ namespace GameHoverDetails
         }
 
         /// <summary>
+        /// WPF <see cref="Popup"/> often keeps the last HWND size when content shrinks.
+        /// Toggling offset forces a position/size pass without closing the popup.
+        /// </summary>
+        private void NudgePopupToApplyNewSize()
+        {
+            if (popup == null || !popup.IsOpen)
+            {
+                return;
+            }
+
+            var x = popup.HorizontalOffset;
+            popup.HorizontalOffset = x + 0.1;
+            popup.HorizontalOffset = x;
+        }
+
+        /// <summary>
         /// RTL side placement: put the panel fully left of the tile, top-aligned. WPF custom placement
         /// often reports width 0 on first open, which parks the HWND on the tile.
         /// </summary>
@@ -1048,22 +981,11 @@ namespace GameHoverDetails
         {
             if (popup?.Child == null || lastShownAnchor == null || popup.Placement != PlacementMode.Custom)
             {
-                // #region agent log
-                AgentLog("H4", "NudgeRtlPopupOutsideAnchor", "skip no popup/anchor/custom",
-                    "{\"hasChild\":" + (popup?.Child != null ? "true" : "false")
-                    + ",\"hasAnchor\":" + (lastShownAnchor != null ? "true" : "false")
-                    + ",\"placement\":\"" + (popup != null ? popup.Placement.ToString() : "null") + "\"}");
-                // #endregion
                 return;
             }
 
             if (IsListViewDesktop() || !HoverLoc.IsRightToLeftLayout(playniteApi, mainWindow))
             {
-                // #region agent log
-                AgentLog("H4", "NudgeRtlPopupOutsideAnchor", "skip list or not rtl",
-                    "{\"list\":" + (IsListViewDesktop() ? "true" : "false")
-                    + ",\"rtl\":" + (HoverLoc.IsRightToLeftLayout(playniteApi, mainWindow) ? "true" : "false") + "}");
-                // #endregion
                 return;
             }
 
@@ -1074,32 +996,18 @@ namespace GameHoverDetails
             var tileH = lastShownAnchor.ActualHeight;
             if (width < 8 || height < 8 || tileW < 8 || tileH < 8)
             {
-                // #region agent log
-                AgentLog("H4", "NudgeRtlPopupOutsideAnchor", "skip tiny size",
-                    "{\"w\":" + width.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"h\":" + height.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"tileW\":" + tileW.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"tileH\":" + tileH.ToString("0.##", CultureInfo.InvariantCulture) + "}");
-                // #endregion
                 return;
             }
 
             var source = PresentationSource.FromVisual(child) as HwndSource;
             if (source?.CompositionTarget == null)
             {
-                // #region agent log
-                AgentLog("H4", "NudgeRtlPopupOutsideAnchor", "skip no hwnd", "{}");
-                // #endregion
                 return;
             }
 
             var fromDevice = source.CompositionTarget.TransformFromDevice;
-            Point popupA;
-            Point popupB;
-            Point tileA;
-            Point tileB;
-            var popupRect = GetVisualScreenRectDip(child, width, height, fromDevice, out popupA, out popupB);
-            var tileRect = GetVisualScreenRectDip(lastShownAnchor, tileW, tileH, fromDevice, out tileA, out tileB);
+            var popupRect = GetVisualScreenRectDip(child, width, height, fromDevice, out _, out _);
+            var tileRect = GetVisualScreenRectDip(lastShownAnchor, tileW, tileH, fromDevice, out _, out _);
             if (popupRect.Width < 1 || tileRect.Width < 1)
             {
                 return;
@@ -1125,36 +1033,9 @@ namespace GameHoverDetails
             var deltaY = desiredTop - popupRect.Y;
             if (Math.Abs(deltaX) < 0.5 && Math.Abs(deltaY) < 0.5)
             {
-                // #region agent log
-                AgentLog("H3", "NudgeRtlPopupOutsideAnchor", "already aligned",
-                    "{\"popupX\":" + popupRect.X.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"tileX\":" + tileRect.X.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"desiredLeft\":" + desiredLeft.ToString("0.##", CultureInfo.InvariantCulture)
-                    + ",\"overlaps\":" + (popupRect.IntersectsWith(tileRect) ? "true" : "false") + "}");
-                // #endregion
                 return;
             }
 
-            // #region agent log
-            AgentLog("H3", "NudgeRtlPopupOutsideAnchor", "nudge apply",
-                "{\"popupX\":" + popupRect.X.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"popupY\":" + popupRect.Y.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"popupW\":" + popupRect.Width.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"popupH\":" + popupRect.Height.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"tileX\":" + tileRect.X.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"tileY\":" + tileRect.Y.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"tileW\":" + tileRect.Width.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"tileH\":" + tileRect.Height.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"popupA\":\"" + popupA.X.ToString("0.##", CultureInfo.InvariantCulture) + "," + popupA.Y.ToString("0.##", CultureInfo.InvariantCulture) + "\""
-                + ",\"popupB\":\"" + popupB.X.ToString("0.##", CultureInfo.InvariantCulture) + "," + popupB.Y.ToString("0.##", CultureInfo.InvariantCulture) + "\""
-                + ",\"tileA\":\"" + tileA.X.ToString("0.##", CultureInfo.InvariantCulture) + "," + tileA.Y.ToString("0.##", CultureInfo.InvariantCulture) + "\""
-                + ",\"tileB\":\"" + tileB.X.ToString("0.##", CultureInfo.InvariantCulture) + "," + tileB.Y.ToString("0.##", CultureInfo.InvariantCulture) + "\""
-                + ",\"desiredLeft\":" + desiredLeft.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"deltaX\":" + deltaX.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"deltaY\":" + deltaY.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"hOffBefore\":" + popup.HorizontalOffset.ToString("0.##", CultureInfo.InvariantCulture)
-                + ",\"overlaps\":" + (popupRect.IntersectsWith(tileRect) ? "true" : "false") + "}");
-            // #endregion
             // Offset apply removed: it fought ShowOrUpdatePopup's offset reset (jumping). Placement math is the fix.
         }
 
@@ -1243,327 +1124,6 @@ namespace GameHoverDetails
             }
         }
 
-        private static void TrimLastContentBottomMargin(Panel panel)
-        {
-            if (panel.Children.Count == 0)
-            {
-                return;
-            }
-
-            if (!(panel.Children[panel.Children.Count - 1] is FrameworkElement last))
-            {
-                return;
-            }
-
-            var m = last.Margin;
-            if (m.Bottom <= 0.01)
-            {
-                return;
-            }
-
-            last.Margin = new Thickness(m.Left, m.Top, m.Right, 0);
-        }
-
-        private void AppendFieldBlockSeparator(bool isFirstBlock)
-        {
-            if (isFirstBlock)
-            {
-                return;
-            }
-
-            var pad = FieldBlockSpacingHalfDip();
-            var hideLine = settings.HideFieldDividers;
-            contentStack.Children.Add(
-                new Border
-                {
-                    Height = hideLine ? 0 : 1,
-                    Margin = new Thickness(0, pad, 0, pad),
-                    Background = hideLine ? Brushes.Transparent : Palette.Separator,
-                    IsHitTestVisible = false
-                });
-        }
-
-        private Border CreateGlyphChip(string glyph)
-        {
-            var chip = GlyphChipSizeDip();
-            var glyphTb = new TextBlock
-            {
-                Text = glyph,
-                FontFamily = HoverFieldInlineIconFontFamily,
-                FontSize = GlyphChipGlyphFontSize(),
-                FontWeight = FontWeights.Normal,
-                Foreground = Palette.GlyphChipGlyph,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                FlowDirection = FlowDirection.LeftToRight,
-                IsHitTestVisible = false
-            };
-
-            return new Border
-            {
-                Width = chip,
-                Height = chip,
-                CornerRadius = settings.ResolveIconChipCornerRadius(),
-                Background = Palette.GlyphChipBackground,
-                Child = glyphTb,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                FlowDirection = FlowDirection.LeftToRight,
-                IsHitTestVisible = false
-            };
-        }
-
-        /// <summary>Text/stat row layouts (separator is caller's responsibility).</summary>
-        private void AppendTextDetailInner(string key, Game game, double innerMax, bool isFirstBlock)
-        {
-            var showTitle = !settings.HideFieldTitlesInHover;
-            var useInlineGlyph = settings.ShowFieldInlineIconsInHover && !HoverFieldCatalog.IsGameArtImageField(key);
-            var labelText = HoverFieldCatalog.GetDisplayName(key);
-            var valueText = HoverFieldFormatter.Format(key, game, playniteApi);
-            var topInset = isFirstBlock ? FirstBlockHeaderTopDip : FieldBlockSpacingHalfDip();
-            var bottomInset = FieldBlockSpacingHalfDip();
-            var chipSize = GlyphChipSizeDip();
-            var textMaxStat = Math.Max(48, innerMax - chipSize - StatRowGlyphToTextGapDip);
-            var bodySize = settings.HoverBodyFontSize;
-            var titleSize = settings.HoverTitleFontSize;
-
-            if (showTitle && useInlineGlyph)
-            {
-                var row = new Grid
-                {
-                    MaxWidth = innerMax,
-                    Margin = new Thickness(0, topInset, 0, bottomInset)
-                };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(chipSize) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                var chip = CreateGlyphChip(HoverFieldCatalog.GetGlyph(key, settings.HoverIconStyle));
-                Grid.SetColumn(chip, 0);
-
-                var label = new TextBlock { Margin = new Thickness(0, 0, 0, LabelToValueGapDip) };
-                HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, textMaxStat, Palette.LabelText, titleSize);
-                HoverDetailValuePresenter.SetHeaderText(label, labelText, textMaxStat);
-
-                var body = new TextBlock();
-                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, textMaxStat, Palette.BodyText, bodySize);
-                HoverDetailValuePresenter.SetBodyContent(body, valueText);
-
-                var textCol = new StackPanel { Margin = new Thickness(StatRowGlyphToTextGapDip, 0, 0, 0) };
-                textCol.Children.Add(label);
-                textCol.Children.Add(body);
-                Grid.SetColumn(textCol, 1);
-
-                row.Children.Add(chip);
-                row.Children.Add(textCol);
-                contentStack.Children.Add(row);
-                return;
-            }
-
-            if (showTitle && !useInlineGlyph)
-            {
-                var label = new TextBlock { Margin = new Thickness(0, topInset, 0, LabelToValueGapDip) };
-                HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, innerMax, Palette.LabelText, titleSize);
-                HoverDetailValuePresenter.SetHeaderText(label, labelText, innerMax);
-
-                var body = new TextBlock { Margin = new Thickness(0, 0, 0, bottomInset) };
-                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, innerMax, Palette.BodyText, bodySize);
-                HoverDetailValuePresenter.SetBodyContent(body, valueText);
-
-                contentStack.Children.Add(label);
-                contentStack.Children.Add(body);
-                return;
-            }
-
-            if (useInlineGlyph)
-            {
-                var row = new Grid
-                {
-                    MaxWidth = innerMax,
-                    Margin = new Thickness(0, topInset, 0, bottomInset)
-                };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(chipSize) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                var chip = CreateGlyphChip(HoverFieldCatalog.GetGlyph(key, settings.HoverIconStyle));
-                Grid.SetColumn(chip, 0);
-
-                var body = new TextBlock
-                {
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                HoverDetailValuePresenter.ConfigureBodyTextBlock(body, textMaxStat, Palette.BodyText, bodySize);
-                HoverDetailValuePresenter.SetBodyContent(body, valueText);
-                Grid.SetColumn(body, 1);
-                body.Margin = new Thickness(StatRowGlyphToTextGapDip, 0, 0, 0);
-
-                row.Children.Add(chip);
-                row.Children.Add(body);
-                contentStack.Children.Add(row);
-                return;
-            }
-
-            var bodyOnly = new TextBlock
-            {
-                Margin = new Thickness(0, topInset, 0, bottomInset)
-            };
-            HoverDetailValuePresenter.ConfigureBodyTextBlock(bodyOnly, innerMax, Palette.BodyText, bodySize);
-            HoverDetailValuePresenter.SetBodyContent(bodyOnly, valueText);
-            contentStack.Children.Add(bodyOnly);
-        }
-
-        private void AppendTextDetailRow(string key, Game game, double innerMax, bool isFirstBlock)
-        {
-            AppendFieldBlockSeparator(isFirstBlock);
-            AppendTextDetailInner(key, game, innerMax, isFirstBlock);
-        }
-
-        private const double HoverIconBoxPx = 40;
-
-        private void TryAppendGameArtRow(string key, Game game, double innerMax, bool isFirstBlock, bool showGameNameBesideIcon)
-        {
-            var bmp = HoverBitmapLoader.TryLoadGameArt(key, game, playniteApi);
-            if (bmp == null)
-            {
-                return;
-            }
-
-            AppendFieldBlockSeparator(isFirstBlock);
-
-            double maxW;
-            double maxH;
-            switch (key)
-            {
-                case "Icon":
-                    maxW = HoverIconBoxPx;
-                    maxH = HoverIconBoxPx;
-                    break;
-                case "CoverImage":
-                    maxW = innerMax;
-                    maxH = 220;
-                    break;
-                default:
-                    maxW = innerMax;
-                    maxH = 140;
-                    break;
-            }
-
-            var top = isFirstBlock ? FirstBlockHeaderTopDip : FieldBlockSpacingHalfDip();
-            var bottom = FieldBlockSpacingHalfDip();
-
-            if (key == "Icon" && showGameNameBesideIcon)
-            {
-                var textMax = Math.Max(48, innerMax - HoverIconBoxPx - StatRowGlyphToTextGapDip);
-                var row = new Grid
-                {
-                    MaxWidth = innerMax,
-                    Margin = new Thickness(0, top, 0, bottom)
-                };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                var img = new Image
-                {
-                    Source = bmp,
-                    Stretch = Stretch.Uniform,
-                    MaxWidth = maxW,
-                    MaxHeight = maxH,
-                    Width = HoverIconBoxPx,
-                    Height = HoverIconBoxPx,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    IsHitTestVisible = false
-                };
-                Grid.SetColumn(img, 0);
-
-                var nameTb = new TextBlock
-                {
-                    Margin = new Thickness(StatRowGlyphToTextGapDip, 0, 0, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                HoverDetailValuePresenter.ConfigureBodyTextBlock(nameTb, textMax, Palette.BodyText, settings.HoverBodyFontSize);
-                HoverDetailValuePresenter.SetBodyContent(nameTb, HoverFieldFormatter.Format("Name", game, playniteApi));
-                Grid.SetColumn(nameTb, 1);
-
-                row.Children.Add(img);
-                row.Children.Add(nameTb);
-                contentStack.Children.Add(row);
-                return;
-            }
-
-            var imgOnly = new Image
-            {
-                Source = bmp,
-                Stretch = Stretch.Uniform,
-                MaxWidth = maxW,
-                MaxHeight = maxH,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(0, top, 0, bottom),
-                IsHitTestVisible = false
-            };
-
-            contentStack.Children.Add(imgOnly);
-        }
-
-        private void AppendPlatformRow(Game game, string key, double innerMax, bool isFirstBlock)
-        {
-            AppendFieldBlockSeparator(isFirstBlock);
-
-            var showTitle = !settings.HideFieldTitlesInHover;
-            var labelText = HoverFieldCatalog.GetDisplayName(key);
-
-            var topInset = isFirstBlock ? FirstBlockHeaderTopDip : FieldBlockSpacingHalfDip();
-            var bottomInset = FieldBlockSpacingHalfDip();
-            var panel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                MaxWidth = innerMax,
-                Margin = new Thickness(0, topInset, 0, bottomInset)
-            };
-
-            if (game.Platforms != null)
-            {
-                foreach (var platform in game.Platforms)
-                {
-                    var iconBmp = HoverBitmapLoader.TryLoadPlatformIcon(platform, playniteApi);
-                    if (iconBmp == null)
-                    {
-                        continue;
-                    }
-
-                    panel.Children.Add(
-                        new Image
-                        {
-                            Source = iconBmp,
-                            Height = HoverIconBoxPx,
-                            Width = HoverIconBoxPx,
-                            MaxHeight = HoverIconBoxPx,
-                            MaxWidth = HoverIconBoxPx,
-                            Margin = new Thickness(0, 0, 6, 0),
-                            Stretch = Stretch.Uniform,
-                            HorizontalAlignment = HorizontalAlignment.Left
-                        });
-                }
-            }
-
-            if (panel.Children.Count > 0)
-            {
-                if (showTitle)
-                {
-                    var label = new TextBlock { Margin = new Thickness(0, topInset, 0, LabelToValueGapDip) };
-                    HoverDetailValuePresenter.ConfigureFieldLabelTextBlock(label, innerMax, Palette.LabelText, settings.HoverTitleFontSize);
-                    HoverDetailValuePresenter.SetHeaderText(label, labelText, innerMax);
-                    contentStack.Children.Add(label);
-                    panel.Margin = new Thickness(0, 0, 0, bottomInset);
-                }
-
-                contentStack.Children.Add(panel);
-                return;
-            }
-
-            AppendTextDetailInner(key, game, innerMax, isFirstBlock);
-        }
-
         private void ChromeBorderOnPointerOverChrome(object sender, MouseEventArgs e)
         {
             if (broken)
@@ -1598,22 +1158,13 @@ namespace GameHoverDetails
                 IsHitTestVisible = true
             };
 
-            coverHost = new Canvas
+            coverHost = new Border
             {
-                ClipToBounds = true,
-                IsHitTestVisible = false,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch
-            };
-
-            coverImage = new Image
-            {
-                Stretch = Stretch.UniformToFill,
-                StretchDirection = StretchDirection.Both,
+                VerticalAlignment = VerticalAlignment.Stretch,
                 IsHitTestVisible = false,
                 Visibility = Visibility.Collapsed
             };
-            coverHost.Children.Add(coverImage);
 
             coverTint = new Border
             {
@@ -1641,8 +1192,12 @@ namespace GameHoverDetails
             {
                 CornerRadius = new CornerRadius(ChromeCornerRadiusDip),
                 ClipToBounds = true,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
                 IsHitTestVisible = false,
-                Child = frostImage,
+                // Image.Source measures to the last snapshot; that locked the panel
+                // height after fields were removed. Overlay paints frost without layout.
+                Child = new NonMeasuringOverlay { Child = frostImage },
                 Visibility = Visibility.Collapsed
             };
 
@@ -1652,6 +1207,8 @@ namespace GameHoverDetails
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(ChromeCornerRadiusDip),
                 Child = chromeBody,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Top,
                 IsHitTestVisible = true
             };
             chromeBorder.PreviewMouseMove += ChromeBorderOnPointerOverChrome;
@@ -1661,11 +1218,16 @@ namespace GameHoverDetails
             {
                 Background = new SolidColorBrush(Color.FromArgb(72, 0, 0, 0)),
                 CornerRadius = new CornerRadius(ChromeCornerRadiusDip),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
                 IsHitTestVisible = false,
                 RenderTransform = new TranslateTransform(0, 2)
             };
 
-            var layers = new Grid();
+            var layers = new Grid
+            {
+                VerticalAlignment = VerticalAlignment.Top
+            };
             layers.Children.Add(shadow);
             layers.Children.Add(frostHost);
             layers.Children.Add(chromeBorder);
@@ -1721,14 +1283,6 @@ namespace GameHoverDetails
 
             var innerRadius = Math.Max(0, ChromeCornerRadiusDip - 1);
             chromeBody.Clip = new RectangleGeometry(new Rect(0, 0, w, h), innerRadius, innerRadius);
-
-            if (coverImage != null)
-            {
-                coverImage.Width = w;
-                coverImage.Height = h;
-                Canvas.SetLeft(coverImage, 0);
-                Canvas.SetTop(coverImage, 0);
-            }
         }
 
         private void UpdateFrostClip()
@@ -1769,12 +1323,13 @@ namespace GameHoverDetails
             }
 
             EnsureFrostBlurEffect();
-            frostHost.Visibility = Visibility.Visible;
 
             if (popup == null || !popup.IsOpen || chromeRoot.ActualWidth < 2 || chromeRoot.ActualHeight < 2)
             {
                 return;
             }
+
+            frostHost.Visibility = Visibility.Visible;
 
             // CopyFromScreen of a visible panel would snapshot the hover itself. Capture only
             // while the chrome is still transparent (enter animation / first layout).
@@ -1896,38 +1451,83 @@ namespace GameHoverDetails
 
             chromeBorder.MaxHeight = double.PositiveInfinity;
             chromeBorder.MinHeight = 0;
+            chromeBorder.ClearValue(FrameworkElement.HeightProperty);
             if (chromeRoot != null)
             {
                 chromeRoot.MaxHeight = double.PositiveInfinity;
                 chromeRoot.MinHeight = 0;
+                chromeRoot.ClearValue(FrameworkElement.HeightProperty);
             }
 
             if (contentStack != null)
             {
                 contentStack.VerticalAlignment = VerticalAlignment.Top;
+                contentStack.ClearValue(FrameworkElement.HeightProperty);
+                contentStack.ClearValue(FrameworkElement.MinHeightProperty);
+            }
+        }
+
+        private void InvalidatePopupToContentHeight()
+        {
+            ClearArtPanelHeightLimit();
+            contentStack?.InvalidateMeasure();
+            chromeBody?.InvalidateMeasure();
+            chromeBorder?.InvalidateMeasure();
+            chromeRoot?.InvalidateMeasure();
+        }
+
+        private void ClearFrostSnapshot()
+        {
+            if (frostImage != null)
+            {
+                frostImage.Source = null;
+            }
+
+            if (frostHost != null)
+            {
+                frostHost.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Overlay that paints at the parent's arrange size but reports 0×0 during measure.
+        /// Frost snapshots must not keep the hover panel at the previous capture height.
+        /// </summary>
+        private sealed class NonMeasuringOverlay : Decorator
+        {
+            protected override Size MeasureOverride(Size constraint)
+            {
+                Child?.Measure(constraint);
+                return new Size(0, 0);
+            }
+
+            protected override Size ArrangeOverride(Size arrangeSize)
+            {
+                Child?.Arrange(new Rect(arrangeSize));
+                return arrangeSize;
             }
         }
 
         /// <returns>True when the overview fanart is showing (style is Game background and a bitmap loaded).</returns>
         private bool UpdateCoverBackground(Game game)
         {
-            if (coverImage == null || coverTint == null)
+            if (coverHost == null || coverTint == null)
             {
                 return false;
             }
 
             if (!settings.IsGameCoverBackgroundStyle || game == null)
             {
-                coverImage.Source = null;
-                coverImage.Visibility = Visibility.Collapsed;
+                coverHost.Background = null;
+                coverHost.Visibility = Visibility.Collapsed;
                 coverTint.Visibility = Visibility.Collapsed;
                 lastCoverGameId = null;
                 return false;
             }
 
-            if (lastCoverGameId == game.Id && coverImage.Source != null)
+            if (lastCoverGameId == game.Id && coverHost.Background is ImageBrush)
             {
-                coverImage.Visibility = Visibility.Visible;
+                coverHost.Visibility = Visibility.Visible;
                 coverTint.Visibility = Visibility.Visible;
                 return true;
             }
@@ -1935,15 +1535,21 @@ namespace GameHoverDetails
             var bmp = HoverBitmapLoader.TryLoadGameArt("BackgroundImage", game, playniteApi, FanartBackgroundDecodePx);
             if (bmp == null)
             {
-                coverImage.Source = null;
-                coverImage.Visibility = Visibility.Collapsed;
+                coverHost.Background = null;
+                coverHost.Visibility = Visibility.Collapsed;
                 coverTint.Visibility = Visibility.Collapsed;
                 lastCoverGameId = null;
                 return false;
             }
 
-            coverImage.Source = bmp;
-            coverImage.Visibility = Visibility.Visible;
+            coverHost.Background = new ImageBrush(bmp)
+            {
+                Stretch = Stretch.UniformToFill,
+                AlignmentX = AlignmentX.Center,
+                AlignmentY = AlignmentY.Center,
+                TileMode = TileMode.None
+            };
+            coverHost.Visibility = Visibility.Visible;
             coverTint.Visibility = Visibility.Visible;
             lastCoverGameId = game.Id;
             ApplyFanartTintOpacity();
@@ -2013,33 +1619,10 @@ namespace GameHoverDetails
                 chromeRoot.FlowDirection = flow;
             }
 
-            // #region agent log
-            AgentLog("H5", "ApplyChromeFlowDirection", "flow applied",
-                "{\"layoutFlow\":\"" + flow + "\",\"popupFd\":\"" + (popup != null ? popup.FlowDirection.ToString() : "null")
-                + "\",\"chromeFd\":\"" + (chromeRoot != null ? chromeRoot.FlowDirection.ToString() : "null") + "\"}");
-            // #endregion
-
             if (contentStack != null)
             {
                 contentStack.FlowDirection = flow;
             }
         }
-
-        // #region agent log
-        private static void AgentLog(string hypothesisId, string location, string message, string dataJson)
-        {
-            try
-            {
-                var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                var line = "{\"sessionId\":\"848814\",\"runId\":\"post-fix\",\"hypothesisId\":\"" + hypothesisId
-                    + "\",\"location\":\"" + location + "\",\"message\":\"" + message
-                    + "\",\"data\":" + dataJson + ",\"timestamp\":" + ts.ToString(CultureInfo.InvariantCulture) + "}\n";
-                File.AppendAllText(@"E:\Projects\Playnite Extensions\debug-848814.log", line);
-            }
-            catch
-            {
-            }
-        }
-        // #endregion
     }
 }

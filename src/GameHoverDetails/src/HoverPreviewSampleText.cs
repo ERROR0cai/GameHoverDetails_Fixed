@@ -1,6 +1,3 @@
-using System.Net;
-using System.Text.RegularExpressions;
-
 namespace GameHoverDetails
 {
     /// <summary>Static placeholder lines for the settings preview (not live game data).</summary>
@@ -131,8 +128,7 @@ namespace GameHoverDetails
 
             if (key == "Description")
             {
-                var plain = WebUtility.HtmlDecode(Regex.Replace(formatted, "<[^>]+>", " "));
-                plain = Regex.Replace(plain, @"\s+", " ").Trim();
+                var plain = HoverDetailValuePresenter.HtmlToPlainText(formatted);
                 return string.IsNullOrEmpty(plain) ? HoverLoc.Empty : plain;
             }
 

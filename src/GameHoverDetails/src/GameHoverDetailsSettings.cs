@@ -15,23 +15,37 @@ namespace GameHoverDetails
         private const int MaxShowDelayMs = 500;
         private const int MinFieldBlockSpacingDip = 4;
         private const int MaxFieldBlockSpacingDip = 36;
-        private const int DefaultFieldBlockSpacingDip = 11;
+        private const int DefaultHoverWidth = 220;
+        private const int DefaultShowDelayMs = 30;
+        private const int DefaultFieldBlockSpacingDip = 10;
+        internal const int MinFieldColumnCount = 1;
+        internal const int MaxFieldColumnCount = 3;
+        internal const int DefaultFieldColumnCount = 1;
         internal const int MinContentPaddingDip = 4;
         internal const int MaxContentPaddingDip = 32;
-        internal const int DefaultContentPaddingDip = 14;
+        internal const int DefaultContentPaddingDip = 16;
         private const int MinChromeOpacity = 0;
         private const int MaxChromeOpacity = 100;
         private const int DefaultChromeOpacity = 100;
-        internal const double DefaultBodyFontSize = 13;
+        internal const double DefaultBodyFontSize = 15;
         internal const double MinBodyFontSize = 9;
         internal const double MaxBodyFontSize = 20;
-        internal const double DefaultTitleFontSize = 10.5;
+        internal const double DefaultTitleFontSize = 10;
         internal const double MinTitleFontSize = 8;
         internal const double MaxTitleFontSize = 16;
-        internal const int DefaultIconChipSizeDip = 32;
-        internal const int MinIconChipSizeDip = 24;
-        internal const int MaxIconChipSizeDip = 48;
-        internal const int DefaultIconChipPaddingDip = 8;
+        /// <summary>Line-height scale is locked to these sizes so changing factory defaults does not change leading.</summary>
+        internal const double BodyLineHeightReferenceFontSize = 13;
+        internal const double TitleLineHeightReferenceFontSize = 10.5;
+        internal const int DefaultIconChipSizeDip = 22;
+        internal const int MinIconChipSizeDip = 8;
+        internal const int MaxIconChipSizeDip = 40;
+        internal const int DefaultIconChipPaddingDip = 2;
+        private const int LegacyMissingFieldBlockSpacingDip = 11;
+        private const int LegacyMissingContentPaddingDip = 14;
+        private const double LegacyMissingBodyFontSize = 13;
+        private const double LegacyMissingTitleFontSize = 10.5;
+        private const int LegacyMissingIconChipSizeDip = 32;
+        private const int LegacyMissingIconChipPaddingDip = 8;
         internal const int MinIconChipPaddingDip = 0;
         internal const int MaxIconChipPaddingDip = 16;
         public const string IconStylePhosphor = "Phosphor";
@@ -46,13 +60,16 @@ namespace GameHoverDetails
         public const string IconChipShapeTile = "Tile";
         public const string IconChipShapeLeaf = "Leaf";
 
-        private static readonly string[] FactoryDefaultSelectedKeys = { "Icon", "Name", "LastPlayed" };
+        private static readonly string[] FactoryDefaultSelectedKeys =
+        {
+            "TimePlayed",
+            "LastPlayed",
+            "Library",
+            "CompletionStatus"
+        };
 
         public const string BackgroundStyleRegular = "Regular";
         public const string BackgroundStyleGameCover = "GameCover";
-
-        /// <summary>Landscape fanart panel: wider than the Regular width slider.</summary>
-        internal const double ArtBackgroundWidthScale = 1.38;
 
         /// <summary>Factory hover uses game background at this opacity.</summary>
         internal const int FanartFactoryOpacity = 75;
@@ -63,63 +80,35 @@ namespace GameHoverDetails
         [DontSerialize]
         private GameHoverDetailsPlugin plugin;
 
-        private int hoverWidth = 360;
-        private int showDelayMs;
+        private int hoverWidth = DefaultHoverWidth;
+        private int showDelayMs = DefaultShowDelayMs;
         private int hoverFieldBlockSpacingDip = DefaultFieldBlockSpacingDip;
+        private int hoverFieldColumnCount = DefaultFieldColumnCount;
         private int hoverContentPaddingDip = DefaultContentPaddingDip;
         private bool hoverDisabled;
         private bool hoverDisabledInFullscreen = true;
         private bool hideFieldTitlesInHover;
-        private bool showFieldInlineIconsInHover;
-        private bool hideIconChipBackground;
+        private bool showFieldInlineIconsInHover = true;
+        private bool hideIconChipBackground = true;
         private bool hideFieldDividers = true;
-        private bool hidePanelBorder;
+        private bool hidePanelBorder = true;
         private double hoverBodyFontSize = DefaultBodyFontSize;
         private double hoverTitleFontSize = DefaultTitleFontSize;
-        private string hoverIconStyle = IconStyleUnicons;
+        private string hoverIconStyle = IconStyleHugeIcons;
         private int hoverIconChipSizeDip = DefaultIconChipSizeDip;
         private int hoverIconChipPaddingDip = DefaultIconChipPaddingDip;
         private string hoverIconChipShape = IconChipShapeCircle;
-        private bool useThemeChrome = true;
+        private bool useThemeChrome;
         private string hoverBackgroundStyle = BackgroundStyleGameCover;
         private string hoverChromeBackgroundHex = HoverChromePalette.DefaultFillHex;
         private string hoverChromeBorderHex = HoverChromePalette.DefaultBorderHex;
         private string hoverChromeDividerHex = HoverChromePalette.DefaultDividerHex;
-        private string hoverChromeIconHex = HoverChromePalette.DefaultIconHex;
         private string hoverChromeIconBackgroundHex = HoverChromePalette.DefaultIconBackgroundHex;
-        private string hoverChromeTextHex = HoverChromePalette.DefaultTextHex;
         private int hoverChromeBackgroundOpacity = FanartFactoryOpacity;
         private List<string> selectedFieldKeys = new List<string>(FactoryDefaultSelectedKeys);
-        private List<string> disabledFieldKeysOrder = new List<string>();
 
-        private int hoverWidthOriginal;
-        private int showDelayMsOriginal;
-        private int hoverFieldBlockSpacingDipOriginal;
-        private int hoverContentPaddingDipOriginal;
-        private bool hoverDisabledOriginal;
-        private bool hoverDisabledInFullscreenOriginal;
-        private bool hideFieldTitlesInHoverOriginal;
-        private bool showFieldInlineIconsInHoverOriginal;
-        private bool hideIconChipBackgroundOriginal;
-        private bool hideFieldDividersOriginal;
-        private bool hidePanelBorderOriginal;
-        private double hoverBodyFontSizeOriginal;
-        private double hoverTitleFontSizeOriginal;
-        private string hoverIconStyleOriginal;
-        private int hoverIconChipSizeDipOriginal;
-        private int hoverIconChipPaddingDipOriginal;
-        private string hoverIconChipShapeOriginal;
-        private bool useThemeChromeOriginal;
-        private string hoverBackgroundStyleOriginal;
-        private string hoverChromeBackgroundHexOriginal;
-        private string hoverChromeBorderHexOriginal;
-        private string hoverChromeDividerHexOriginal;
-        private string hoverChromeIconHexOriginal;
-        private string hoverChromeIconBackgroundHexOriginal;
-        private string hoverChromeTextHexOriginal;
-        private int hoverChromeBackgroundOpacityOriginal;
-        private List<string> selectedFieldKeysOriginal;
-        private List<string> disabledFieldKeysOrderOriginal;
+        [DontSerialize]
+        private GameHoverDetailsPersistedState editSnapshot;
 
         public int HoverWidth
         {
@@ -141,6 +130,13 @@ namespace GameHoverDetails
             set => SetValue(ref hoverFieldBlockSpacingDip, ClampFieldBlockSpacingDip(value));
         }
 
+        /// <summary>How many field columns the hover list uses (1 = stacked, as before).</summary>
+        public int HoverFieldColumnCount
+        {
+            get => hoverFieldColumnCount;
+            set => SetValue(ref hoverFieldColumnCount, ClampFieldColumnCount(value));
+        }
+
         /// <summary>Inset around the field/icon list inside the hover panel (device-independent pixels).</summary>
         public int HoverContentPaddingDip
         {
@@ -152,47 +148,21 @@ namespace GameHoverDetails
         public bool HoverDisabled
         {
             get => hoverDisabled;
-            set => SetValue(ref hoverDisabled, value, nameof(HoverDisabled), nameof(HoverDetailsEnabled));
-        }
-
-        /// <summary>UI binding for "Enable hover details" (inverse of <see cref="HoverDisabled"/>).</summary>
-        /// <remarks>Not serialized — persists via <see cref="HoverDisabled"/> only. Dual properties deserialize in arbitrary order and could corrupt the backing field.</remarks>
-        [DontSerialize]
-        public bool HoverDetailsEnabled
-        {
-            get => !hoverDisabled;
-            set => HoverDisabled = !value;
+            set => SetValue(ref hoverDisabled, value);
         }
 
         /// <summary>When true, hover is off in Playnite Fullscreen (persisted; default true).</summary>
         public bool HoverDisabledInFullscreen
         {
             get => hoverDisabledInFullscreen;
-            set => SetValue(ref hoverDisabledInFullscreen, value, nameof(HoverDisabledInFullscreen), nameof(HoverDetailsEnabledInFullscreen));
-        }
-
-        /// <summary>UI binding for "Show hover in Fullscreen mode".</summary>
-        [DontSerialize]
-        public bool HoverDetailsEnabledInFullscreen
-        {
-            get => !hoverDisabledInFullscreen;
-            set => HoverDisabledInFullscreen = !value;
+            set => SetValue(ref hoverDisabledInFullscreen, value);
         }
 
         /// <summary>When true, field labels (e.g. Publisher) are hidden in the hover panel.</summary>
         public bool HideFieldTitlesInHover
         {
             get => hideFieldTitlesInHover;
-            set => SetValue(ref hideFieldTitlesInHover, value, nameof(HideFieldTitlesInHover), nameof(HoverTitlesInHover));
-        }
-
-        /// <summary>UI binding for "Show field titles in hover".</summary>
-        /// <remarks>Not serialized — persists via <see cref="HideFieldTitlesInHover"/> only.</remarks>
-        [DontSerialize]
-        public bool HoverTitlesInHover
-        {
-            get => !hideFieldTitlesInHover;
-            set => HideFieldTitlesInHover = !value;
+            set => SetValue(ref hideFieldTitlesInHover, value);
         }
 
         /// <summary>When true, show a catalog icon beside text values (not used for cover/icon/background rows or platform icon strip).</summary>
@@ -214,16 +184,7 @@ namespace GameHoverDetails
                 ref hideIconChipBackground,
                 value,
                 nameof(HideIconChipBackground),
-                nameof(ShowIconChipBackground),
                 nameof(ShowIconBackgroundColorControls));
-        }
-
-        /// <summary>UI binding for "Show icon background".</summary>
-        [DontSerialize]
-        public bool ShowIconChipBackground
-        {
-            get => !hideIconChipBackground;
-            set => HideIconChipBackground = !value;
         }
 
         /// <summary>Icon-background color picker is only useful when icons and chip fill are on.</summary>
@@ -238,16 +199,7 @@ namespace GameHoverDetails
                 ref hideFieldDividers,
                 value,
                 nameof(HideFieldDividers),
-                nameof(ShowFieldDividers),
                 nameof(ShowDividerColorControls));
-        }
-
-        /// <summary>UI binding for "Show dividers". Default off.</summary>
-        [DontSerialize]
-        public bool ShowFieldDividers
-        {
-            get => !hideFieldDividers;
-            set => HideFieldDividers = !value;
         }
 
         /// <summary>Divider color picker is only useful when field dividers are shown.</summary>
@@ -262,16 +214,7 @@ namespace GameHoverDetails
                 ref hidePanelBorder,
                 value,
                 nameof(HidePanelBorder),
-                nameof(ShowPanelBorder),
                 nameof(ShowBorderColorControls));
-        }
-
-        /// <summary>UI binding for "Show border". Default on.</summary>
-        [DontSerialize]
-        public bool ShowPanelBorder
-        {
-            get => !hidePanelBorder;
-            set => HidePanelBorder = !value;
         }
 
         /// <summary>Border color picker is only useful when the panel outline is shown.</summary>
@@ -293,12 +236,12 @@ namespace GameHoverDetails
         }
 
         [DontSerialize]
-        public double HoverBodyLineHeight => HoverBodyFontSize * (18.0 / DefaultBodyFontSize);
+        public double HoverBodyLineHeight => HoverBodyFontSize * (18.0 / BodyLineHeightReferenceFontSize);
 
         [DontSerialize]
-        public double HoverTitleLineHeight => HoverTitleFontSize * (14.0 / DefaultTitleFontSize);
+        public double HoverTitleLineHeight => HoverTitleFontSize * (14.0 / TitleLineHeightReferenceFontSize);
 
-        /// <summary>Catalog glyph family: Unicons (default), Phosphor, or HugeIcons.</summary>
+        /// <summary>Catalog glyph family: HugeIcons (default), Unicons, or Phosphor.</summary>
         public string HoverIconStyle
         {
             get => hoverIconStyle;
@@ -397,24 +340,15 @@ namespace GameHoverDetails
 
                 var turningFanartOn = !IsGameCoverBackgroundStyle
                     && string.Equals(norm, BackgroundStyleGameCover, System.StringComparison.Ordinal);
-                SetValue(ref hoverBackgroundStyle, norm, nameof(HoverBackgroundStyle), nameof(HoverBackgroundStyleIndex));
+                SetValue(ref hoverBackgroundStyle, norm, nameof(HoverBackgroundStyle));
                 OnPropertyChanged(nameof(IsGameCoverBackgroundStyle));
                 OnPropertyChanged(nameof(UseGameBackground));
                 OnPropertyChanged(nameof(ShowRegularBackgroundColorControls));
-                OnPropertyChanged(nameof(PreviewChromeMaxWidth));
                 if (turningFanartOn)
                 {
                     HoverChromeBackgroundOpacity = FanartDefaultOpacity;
                 }
             }
-        }
-
-        /// <summary>ComboBox index: 0 Regular, 1 Game cover. Kept for older bindings.</summary>
-        [DontSerialize]
-        public int HoverBackgroundStyleIndex
-        {
-            get => IsGameCoverBackgroundStyle ? 1 : 0;
-            set => HoverBackgroundStyle = value == 1 ? BackgroundStyleGameCover : BackgroundStyleRegular;
         }
 
         /// <summary>UI binding for "Use game background".</summary>
@@ -433,27 +367,8 @@ namespace GameHoverDetails
         [DontSerialize]
         public bool ShowRegularBackgroundColorControls => !IsGameCoverBackgroundStyle;
 
-        /// <summary>Settings preview is wider in fanart mode so the landscape image is not cropped into a poster.</summary>
-        [DontSerialize]
-        public double PreviewChromeMaxWidth => IsGameCoverBackgroundStyle ? 280 : 216;
-
-        /// <summary>Hover panel width: Regular uses the slider; fanart is ~22% wider (capped at the slider max).</summary>
-        internal int ResolveHoverPanelWidth()
-        {
-            var w = HoverWidth;
-            if (!IsGameCoverBackgroundStyle)
-            {
-                return w;
-            }
-
-            var wide = (int)System.Math.Round(w * ArtBackgroundWidthScale);
-            if (wide < 200)
-            {
-                wide = System.Math.Max(w, 200);
-            }
-
-            return wide > MaxWidth ? MaxWidth : wide;
-        }
+        /// <summary>Hover panel width is the Layout slider for both Regular and fanart.</summary>
+        internal int ResolveHoverPanelWidth() => HoverWidth;
 
         /// <summary>When true, popup chrome follows Playnite theme (accent-dark fill); pickers stay visible as a live mirror.</summary>
         public bool UseThemeChrome
@@ -522,26 +437,6 @@ namespace GameHoverDetails
             }
         }
 
-        public string HoverChromeIconHex
-        {
-            get => hoverChromeIconHex;
-            set
-            {
-                if (!HoverChromePalette.TryNormalizeHex(value, out var hex))
-                {
-                    return;
-                }
-
-                if (string.Equals(hoverChromeIconHex, hex, System.StringComparison.Ordinal))
-                {
-                    return;
-                }
-
-                SetValue(ref hoverChromeIconHex, hex, nameof(HoverChromeIconHex), nameof(ChromeIconSwatchBrush));
-                UncheckThemeChromeIfUserEdited();
-            }
-        }
-
         public string HoverChromeIconBackgroundHex
         {
             get => hoverChromeIconBackgroundHex;
@@ -558,26 +453,6 @@ namespace GameHoverDetails
                 }
 
                 SetValue(ref hoverChromeIconBackgroundHex, hex, nameof(HoverChromeIconBackgroundHex), nameof(ChromeIconBackgroundSwatchBrush));
-                UncheckThemeChromeIfUserEdited();
-            }
-        }
-
-        public string HoverChromeTextHex
-        {
-            get => hoverChromeTextHex;
-            set
-            {
-                if (!HoverChromePalette.TryNormalizeHex(value, out var hex))
-                {
-                    return;
-                }
-
-                if (string.Equals(hoverChromeTextHex, hex, System.StringComparison.Ordinal))
-                {
-                    return;
-                }
-
-                SetValue(ref hoverChromeTextHex, hex, nameof(HoverChromeTextHex), nameof(ChromeTextSwatchBrush));
                 UncheckThemeChromeIfUserEdited();
             }
         }
@@ -599,13 +474,7 @@ namespace GameHoverDetails
         public Brush ChromeDividerSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeDividerHex);
 
         [DontSerialize]
-        public Brush ChromeIconSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeIconHex);
-
-        [DontSerialize]
         public Brush ChromeIconBackgroundSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeIconBackgroundHex);
-
-        [DontSerialize]
-        public Brush ChromeTextSwatchBrush => HoverChromePalette.SwatchFromHex(hoverChromeTextHex);
 
         /// <summary>Copy live accent-dark theme colors into the pickers without turning off theme-sync.</summary>
         public void ApplyThemeColorsToPickers()
@@ -631,9 +500,7 @@ namespace GameHoverDetails
             HoverChromeBackgroundHex = HoverChromePalette.DefaultFillHex;
             HoverChromeBorderHex = HoverChromePalette.DefaultBorderHex;
             HoverChromeDividerHex = HoverChromePalette.DefaultDividerHex;
-            HoverChromeIconHex = HoverChromePalette.DefaultIconHex;
             HoverChromeIconBackgroundHex = HoverChromePalette.DefaultIconBackgroundHex;
-            HoverChromeTextHex = HoverChromePalette.DefaultTextHex;
             HoverChromeBackgroundOpacity = DefaultChromeOpacity;
         }
 
@@ -666,23 +533,10 @@ namespace GameHoverDetails
                 var norm = NormalizeKeys(value ?? new List<string>());
                 if (ListsEqual(selectedFieldKeys, norm))
                 {
-                    CoalesceDisabledOrder();
                     return;
                 }
 
                 SetValue(ref selectedFieldKeys, norm, nameof(SelectedFieldKeys), nameof(SelectedFieldCount));
-                CoalesceDisabledOrder();
-            }
-        }
-
-        /// <summary>All non-enabled catalog keys, in UI order (for disabled list).</summary>
-        public List<string> DisabledFieldKeysOrder
-        {
-            get => disabledFieldKeysOrder;
-            set
-            {
-                disabledFieldKeysOrder = value ?? new List<string>();
-                CoalesceDisabledOrder();
             }
         }
 
@@ -733,10 +587,13 @@ namespace GameHoverDetails
                 hoverWidth = ClampWidth(saved.HoverWidth);
                 showDelayMs = ClampShowDelayMs(saved.ShowDelayMs);
                 hoverFieldBlockSpacingDip = saved.HoverFieldBlockSpacingDip <= 0
-                    ? DefaultFieldBlockSpacingDip
+                    ? LegacyMissingFieldBlockSpacingDip
                     : ClampFieldBlockSpacingDip(saved.HoverFieldBlockSpacingDip);
+                hoverFieldColumnCount = saved.HoverFieldColumnCount == null || saved.HoverFieldColumnCount.Value <= 0
+                    ? DefaultFieldColumnCount
+                    : ClampFieldColumnCount(saved.HoverFieldColumnCount.Value);
                 hoverContentPaddingDip = saved.HoverContentPaddingDip == null
-                    ? DefaultContentPaddingDip
+                    ? LegacyMissingContentPaddingDip
                     : ClampContentPaddingDip(saved.HoverContentPaddingDip.Value);
                 hoverDisabled = saved.HoverDisabled;
                 hoverDisabledInFullscreen = saved.HoverDisabledInFullscreen ?? true;
@@ -746,17 +603,17 @@ namespace GameHoverDetails
                 hideFieldDividers = saved.HideFieldDividers ?? true;
                 hidePanelBorder = saved.HidePanelBorder ?? false;
                 hoverBodyFontSize = saved.HoverBodyFontSize == null || saved.HoverBodyFontSize.Value <= 0
-                    ? DefaultBodyFontSize
+                    ? LegacyMissingBodyFontSize
                     : ClampBodyFontSize(saved.HoverBodyFontSize.Value);
                 hoverTitleFontSize = saved.HoverTitleFontSize == null || saved.HoverTitleFontSize.Value <= 0
-                    ? DefaultTitleFontSize
+                    ? LegacyMissingTitleFontSize
                     : ClampTitleFontSize(saved.HoverTitleFontSize.Value);
                 hoverIconStyle = NormalizeIconStyle(saved.HoverIconStyle);
                 hoverIconChipSizeDip = saved.HoverIconChipSizeDip == null || saved.HoverIconChipSizeDip.Value <= 0
-                    ? DefaultIconChipSizeDip
+                    ? LegacyMissingIconChipSizeDip
                     : ClampIconChipSizeDip(saved.HoverIconChipSizeDip.Value);
                 hoverIconChipPaddingDip = saved.HoverIconChipPaddingDip == null
-                    ? DefaultIconChipPaddingDip
+                    ? LegacyMissingIconChipPaddingDip
                     : ClampIconChipPaddingDip(saved.HoverIconChipPaddingDip.Value);
                 hoverIconChipShape = NormalizeIconChipShape(saved.HoverIconChipShape);
                 useThemeChrome = saved.UseThemeChrome ?? true;
@@ -772,25 +629,14 @@ namespace GameHoverDetails
                         ? saved.HoverChromeBorderHex
                         : saved.HoverChromeDividerHex,
                     HoverChromePalette.DefaultDividerHex);
-                hoverChromeIconHex = HoverChromePalette.NormalizeHexOrDefault(
-                    saved.HoverChromeIconHex,
-                    HoverChromePalette.DefaultIconHex);
                 hoverChromeIconBackgroundHex = HoverChromePalette.NormalizeHexOrDefault(
                     saved.HoverChromeIconBackgroundHex,
                     HoverChromePalette.DefaultIconBackgroundHex);
-                hoverChromeTextHex = HoverChromePalette.NormalizeHexOrDefault(
-                    saved.HoverChromeTextHex,
-                    HoverChromePalette.DefaultTextHex);
                 hoverChromeBackgroundOpacity = saved.HoverChromeBackgroundOpacity == null
                     ? DefaultChromeOpacity
                     : ClampChromeOpacity(saved.HoverChromeBackgroundOpacity.Value);
                 selectedFieldKeys = NormalizeKeys(saved.SelectedFieldKeys ?? new List<string>());
-                disabledFieldKeysOrder = saved.DisabledFieldKeysOrder != null
-                    ? new List<string>(saved.DisabledFieldKeysOrder)
-                    : new List<string>();
             }
-
-            CoalesceDisabledOrder();
         }
 
         public IReadOnlyList<string> GetOrderedSelectedKeys()
@@ -835,38 +681,6 @@ namespace GameHoverDetails
             insert = System.Math.Max(0, System.Math.Min(insert, selectedFieldKeys.Count));
             selectedFieldKeys.Insert(insert, key);
             SetValue(ref selectedFieldKeys, new List<string>(selectedFieldKeys), nameof(SelectedFieldKeys), nameof(SelectedFieldCount));
-            CoalesceDisabledOrder();
-            return true;
-        }
-
-        public bool MoveDisabled(int fromIndex, int toIndex)
-        {
-            if (fromIndex < 0 || fromIndex >= disabledFieldKeysOrder.Count)
-            {
-                return false;
-            }
-
-            if (toIndex < 0 || toIndex > disabledFieldKeysOrder.Count)
-            {
-                return false;
-            }
-
-            if (fromIndex == toIndex)
-            {
-                return true;
-            }
-
-            var key = disabledFieldKeysOrder[fromIndex];
-            disabledFieldKeysOrder.RemoveAt(fromIndex);
-            var insert = toIndex;
-            if (insert > fromIndex)
-            {
-                insert--;
-            }
-
-            insert = System.Math.Max(0, System.Math.Min(insert, disabledFieldKeysOrder.Count));
-            disabledFieldKeysOrder.Insert(insert, key);
-            SetValue(ref disabledFieldKeysOrder, new List<string>(disabledFieldKeysOrder), nameof(DisabledFieldKeysOrder));
             return true;
         }
 
@@ -882,73 +696,36 @@ namespace GameHoverDetails
                 return true;
             }
 
-            // Key is not selected; it should appear in the disabled pool after Coalesce, but tolerate
-            // legacy or inconsistent state (still list it in GetAddableKeys) instead of failing the add.
-            disabledFieldKeysOrder.Remove(key);
-
             var ins = System.Math.Max(0, System.Math.Min(enabledInsertIndex, selectedFieldKeys.Count));
             selectedFieldKeys.Insert(ins, key);
             SetValue(ref selectedFieldKeys, new List<string>(selectedFieldKeys), nameof(SelectedFieldKeys), nameof(SelectedFieldCount));
-            CoalesceDisabledOrder();
             return true;
         }
 
-        public bool DisableFieldAt(int enabledIndex, int disabledInsertIndex)
+        public bool DisableFieldAt(int enabledIndex)
         {
             if (enabledIndex < 0 || enabledIndex >= selectedFieldKeys.Count)
             {
                 return false;
             }
 
-            var key = selectedFieldKeys[enabledIndex];
             selectedFieldKeys.RemoveAt(enabledIndex);
-            var ins = System.Math.Max(0, System.Math.Min(disabledInsertIndex, disabledFieldKeysOrder.Count));
-            disabledFieldKeysOrder.Insert(ins, key);
             if (selectedFieldKeys.Count == 0)
             {
                 foreach (var d in FactoryDefaultSelectedKeys)
                 {
                     selectedFieldKeys.Add(d);
-                    disabledFieldKeysOrder.Remove(d);
                 }
             }
 
             SetValue(ref selectedFieldKeys, new List<string>(selectedFieldKeys), nameof(SelectedFieldKeys), nameof(SelectedFieldCount));
-            CoalesceDisabledOrder();
             return true;
         }
 
         public void BeginEdit()
         {
             SuppressHoverLiveUpdates = true;
-            hoverWidthOriginal = HoverWidth;
-            showDelayMsOriginal = ShowDelayMs;
-            hoverFieldBlockSpacingDipOriginal = HoverFieldBlockSpacingDip;
-            hoverContentPaddingDipOriginal = HoverContentPaddingDip;
-            hoverDisabledOriginal = HoverDisabled;
-            hoverDisabledInFullscreenOriginal = HoverDisabledInFullscreen;
-            hideFieldTitlesInHoverOriginal = HideFieldTitlesInHover;
-            showFieldInlineIconsInHoverOriginal = ShowFieldInlineIconsInHover;
-            hideIconChipBackgroundOriginal = HideIconChipBackground;
-            hideFieldDividersOriginal = HideFieldDividers;
-            hidePanelBorderOriginal = HidePanelBorder;
-            hoverBodyFontSizeOriginal = HoverBodyFontSize;
-            hoverTitleFontSizeOriginal = HoverTitleFontSize;
-            hoverIconStyleOriginal = HoverIconStyle;
-            hoverIconChipSizeDipOriginal = HoverIconChipSizeDip;
-            hoverIconChipPaddingDipOriginal = HoverIconChipPaddingDip;
-            hoverIconChipShapeOriginal = HoverIconChipShape;
-            useThemeChromeOriginal = UseThemeChrome;
-            hoverBackgroundStyleOriginal = HoverBackgroundStyle;
-            hoverChromeBackgroundHexOriginal = HoverChromeBackgroundHex;
-            hoverChromeBorderHexOriginal = HoverChromeBorderHex;
-            hoverChromeDividerHexOriginal = HoverChromeDividerHex;
-            hoverChromeIconHexOriginal = HoverChromeIconHex;
-            hoverChromeIconBackgroundHexOriginal = HoverChromeIconBackgroundHex;
-            hoverChromeTextHexOriginal = HoverChromeTextHex;
-            hoverChromeBackgroundOpacityOriginal = HoverChromeBackgroundOpacity;
-            selectedFieldKeysOriginal = new List<string>(SelectedFieldKeys);
-            disabledFieldKeysOrderOriginal = new List<string>(DisabledFieldKeysOrder);
+            editSnapshot = ToPersistedState();
         }
 
         public void CancelEdit()
@@ -956,37 +733,7 @@ namespace GameHoverDetails
             SuppressSettingsViewRebuilds = true;
             try
             {
-                HoverWidth = hoverWidthOriginal;
-                ShowDelayMs = showDelayMsOriginal;
-                HoverFieldBlockSpacingDip = hoverFieldBlockSpacingDipOriginal;
-                HoverContentPaddingDip = hoverContentPaddingDipOriginal;
-                HoverDisabled = hoverDisabledOriginal;
-                HoverDisabledInFullscreen = hoverDisabledInFullscreenOriginal;
-                HideFieldTitlesInHover = hideFieldTitlesInHoverOriginal;
-                ShowFieldInlineIconsInHover = showFieldInlineIconsInHoverOriginal;
-                HideIconChipBackground = hideIconChipBackgroundOriginal;
-                HideFieldDividers = hideFieldDividersOriginal;
-                HidePanelBorder = hidePanelBorderOriginal;
-                HoverBodyFontSize = hoverBodyFontSizeOriginal;
-                HoverTitleFontSize = hoverTitleFontSizeOriginal;
-                HoverIconStyle = hoverIconStyleOriginal;
-                HoverIconChipSizeDip = hoverIconChipSizeDipOriginal;
-                HoverIconChipPaddingDip = hoverIconChipPaddingDipOriginal;
-                HoverIconChipShape = hoverIconChipShapeOriginal;
-                HoverBackgroundStyle = hoverBackgroundStyleOriginal;
-                RunWithThemeHexSync(() =>
-                {
-                    UseThemeChrome = useThemeChromeOriginal;
-                    HoverChromeBackgroundHex = hoverChromeBackgroundHexOriginal;
-                    HoverChromeBorderHex = hoverChromeBorderHexOriginal;
-                    HoverChromeDividerHex = hoverChromeDividerHexOriginal;
-                    HoverChromeIconHex = hoverChromeIconHexOriginal;
-                    HoverChromeIconBackgroundHex = hoverChromeIconBackgroundHexOriginal;
-                    HoverChromeTextHex = hoverChromeTextHexOriginal;
-                });
-                HoverChromeBackgroundOpacity = hoverChromeBackgroundOpacityOriginal;
-                SelectedFieldKeys = new List<string>(selectedFieldKeysOriginal ?? new List<string>(FactoryDefaultSelectedKeys));
-                DisabledFieldKeysOrder = new List<string>(disabledFieldKeysOrderOriginal ?? new List<string>());
+                ApplyPersistedState(editSnapshot);
             }
             finally
             {
@@ -1003,7 +750,72 @@ namespace GameHoverDetails
             // settings preview (library art scans) on the UI thread and froze Save.
             plugin.SavePluginSettings(ToPersistedState());
             SuppressHoverLiveUpdates = false;
+            // Idle so the settings dialog can close before any hover rebuild.
             plugin.NotifyHoverSettingsApplied();
+        }
+
+        private void ApplyPersistedState(GameHoverDetailsPersistedState saved)
+        {
+            if (saved == null)
+            {
+                return;
+            }
+
+            HoverWidth = saved.HoverWidth;
+            ShowDelayMs = saved.ShowDelayMs;
+            HoverFieldBlockSpacingDip = saved.HoverFieldBlockSpacingDip <= 0
+                ? LegacyMissingFieldBlockSpacingDip
+                : saved.HoverFieldBlockSpacingDip;
+            HoverFieldColumnCount = saved.HoverFieldColumnCount == null || saved.HoverFieldColumnCount.Value <= 0
+                ? DefaultFieldColumnCount
+                : saved.HoverFieldColumnCount.Value;
+            HoverContentPaddingDip = saved.HoverContentPaddingDip == null
+                ? LegacyMissingContentPaddingDip
+                : saved.HoverContentPaddingDip.Value;
+            HoverDisabled = saved.HoverDisabled;
+            HoverDisabledInFullscreen = saved.HoverDisabledInFullscreen ?? true;
+            HideFieldTitlesInHover = saved.HideFieldTitlesInHover;
+            ShowFieldInlineIconsInHover = saved.ShowFieldInlineIconsInHover;
+            HideIconChipBackground = saved.HideIconChipBackground;
+            HideFieldDividers = saved.HideFieldDividers ?? true;
+            HidePanelBorder = saved.HidePanelBorder ?? false;
+            HoverBodyFontSize = saved.HoverBodyFontSize == null || saved.HoverBodyFontSize.Value <= 0
+                ? LegacyMissingBodyFontSize
+                : saved.HoverBodyFontSize.Value;
+            HoverTitleFontSize = saved.HoverTitleFontSize == null || saved.HoverTitleFontSize.Value <= 0
+                ? LegacyMissingTitleFontSize
+                : saved.HoverTitleFontSize.Value;
+            HoverIconStyle = saved.HoverIconStyle;
+            HoverIconChipSizeDip = saved.HoverIconChipSizeDip == null || saved.HoverIconChipSizeDip.Value <= 0
+                ? LegacyMissingIconChipSizeDip
+                : saved.HoverIconChipSizeDip.Value;
+            HoverIconChipPaddingDip = saved.HoverIconChipPaddingDip == null
+                ? LegacyMissingIconChipPaddingDip
+                : saved.HoverIconChipPaddingDip.Value;
+            HoverIconChipShape = saved.HoverIconChipShape;
+            HoverBackgroundStyle = saved.HoverBackgroundStyle;
+            RunWithThemeHexSync(() =>
+            {
+                UseThemeChrome = saved.UseThemeChrome ?? true;
+                HoverChromeBackgroundHex = HoverChromePalette.NormalizeHexOrDefault(
+                    saved.HoverChromeBackgroundHex,
+                    HoverChromePalette.DefaultFillHex);
+                HoverChromeBorderHex = HoverChromePalette.NormalizeHexOrDefault(
+                    saved.HoverChromeBorderHex,
+                    HoverChromePalette.DefaultBorderHex);
+                HoverChromeDividerHex = HoverChromePalette.NormalizeHexOrDefault(
+                    string.IsNullOrWhiteSpace(saved.HoverChromeDividerHex)
+                        ? saved.HoverChromeBorderHex
+                        : saved.HoverChromeDividerHex,
+                    HoverChromePalette.DefaultDividerHex);
+                HoverChromeIconBackgroundHex = HoverChromePalette.NormalizeHexOrDefault(
+                    saved.HoverChromeIconBackgroundHex,
+                    HoverChromePalette.DefaultIconBackgroundHex);
+            });
+            HoverChromeBackgroundOpacity = saved.HoverChromeBackgroundOpacity == null
+                ? DefaultChromeOpacity
+                : saved.HoverChromeBackgroundOpacity.Value;
+            SelectedFieldKeys = new List<string>(saved.SelectedFieldKeys ?? new List<string>(FactoryDefaultSelectedKeys));
         }
 
         private GameHoverDetailsPersistedState ToPersistedState()
@@ -1013,6 +825,7 @@ namespace GameHoverDetails
                 HoverWidth = HoverWidth,
                 ShowDelayMs = ShowDelayMs,
                 HoverFieldBlockSpacingDip = HoverFieldBlockSpacingDip,
+                HoverFieldColumnCount = HoverFieldColumnCount,
                 HoverContentPaddingDip = HoverContentPaddingDip,
                 HoverDisabled = HoverDisabled,
                 HoverDisabledInFullscreen = HoverDisabledInFullscreen,
@@ -1032,12 +845,9 @@ namespace GameHoverDetails
                 HoverChromeBackgroundHex = HoverChromeBackgroundHex,
                 HoverChromeBorderHex = HoverChromeBorderHex,
                 HoverChromeDividerHex = HoverChromeDividerHex,
-                HoverChromeIconHex = HoverChromeIconHex,
                 HoverChromeIconBackgroundHex = HoverChromeIconBackgroundHex,
-                HoverChromeTextHex = HoverChromeTextHex,
                 HoverChromeBackgroundOpacity = HoverChromeBackgroundOpacity,
-                SelectedFieldKeys = new List<string>(SelectedFieldKeys),
-                DisabledFieldKeysOrder = new List<string>(DisabledFieldKeysOrder)
+                SelectedFieldKeys = new List<string>(SelectedFieldKeys)
             };
         }
 
@@ -1052,6 +862,11 @@ namespace GameHoverDetails
             if (HoverFieldBlockSpacingDip < MinFieldBlockSpacingDip || HoverFieldBlockSpacingDip > MaxFieldBlockSpacingDip)
             {
                 errors.Add($"Field spacing must be between {MinFieldBlockSpacingDip} and {MaxFieldBlockSpacingDip} pixels.");
+            }
+
+            if (HoverFieldColumnCount < MinFieldColumnCount || HoverFieldColumnCount > MaxFieldColumnCount)
+            {
+                errors.Add($"Field columns must be between {MinFieldColumnCount} and {MaxFieldColumnCount}.");
             }
 
             if (HoverContentPaddingDip < MinContentPaddingDip || HoverContentPaddingDip > MaxContentPaddingDip)
@@ -1099,19 +914,9 @@ namespace GameHoverDetails
                 errors.Add("Hover divider color is not a valid hex color.");
             }
 
-            if (!HoverChromePalette.TryParseHex(HoverChromeIconHex, out _))
-            {
-                errors.Add("Hover icon color is not a valid hex color.");
-            }
-
             if (!HoverChromePalette.TryParseHex(HoverChromeIconBackgroundHex, out _))
             {
                 errors.Add("Hover icon background color is not a valid hex color.");
-            }
-
-            if (!HoverChromePalette.TryParseHex(HoverChromeTextHex, out _))
-            {
-                errors.Add("Hover text color is not a valid hex color.");
             }
 
             if (SelectedFieldKeys.Count == 0)
@@ -1193,15 +998,7 @@ namespace GameHoverDetails
             }
         }
 
-        private static int ClampIconChipPaddingDip(int v)
-        {
-            if (v < MinIconChipPaddingDip)
-            {
-                return MinIconChipPaddingDip;
-            }
-
-            return v > MaxIconChipPaddingDip ? MaxIconChipPaddingDip : v;
-        }
+        private static int ClampIconChipPaddingDip(int v) => Clamp(v, MinIconChipPaddingDip, MaxIconChipPaddingDip);
 
         internal static string NormalizeIconStyle(string value)
         {
@@ -1220,35 +1017,11 @@ namespace GameHoverDetails
             return IconStyleUnicons;
         }
 
-        private static double ClampBodyFontSize(double v)
-        {
-            if (v < MinBodyFontSize)
-            {
-                return MinBodyFontSize;
-            }
+        private static double ClampBodyFontSize(double v) => Clamp(v, MinBodyFontSize, MaxBodyFontSize);
 
-            return v > MaxBodyFontSize ? MaxBodyFontSize : v;
-        }
+        private static double ClampTitleFontSize(double v) => Clamp(v, MinTitleFontSize, MaxTitleFontSize);
 
-        private static double ClampTitleFontSize(double v)
-        {
-            if (v < MinTitleFontSize)
-            {
-                return MinTitleFontSize;
-            }
-
-            return v > MaxTitleFontSize ? MaxTitleFontSize : v;
-        }
-
-        private static int ClampIconChipSizeDip(int v)
-        {
-            if (v < MinIconChipSizeDip)
-            {
-                return MinIconChipSizeDip;
-            }
-
-            return v > MaxIconChipSizeDip ? MaxIconChipSizeDip : v;
-        }
+        private static int ClampIconChipSizeDip(int v) => Clamp(v, MinIconChipSizeDip, MaxIconChipSizeDip);
 
         private static string NormalizeBackgroundStyle(string value)
         {
@@ -1262,54 +1035,36 @@ namespace GameHoverDetails
             return BackgroundStyleRegular;
         }
 
-        private static int ClampWidth(int v)
+        private static int ClampWidth(int v) => Clamp(v, MinWidth, MaxWidth);
+
+        private static int ClampShowDelayMs(int v) => Clamp(v, MinShowDelayMs, MaxShowDelayMs);
+
+        private static int ClampFieldBlockSpacingDip(int v) => Clamp(v, MinFieldBlockSpacingDip, MaxFieldBlockSpacingDip);
+
+        private static int ClampFieldColumnCount(int v) => Clamp(v, MinFieldColumnCount, MaxFieldColumnCount);
+
+        private static int ClampContentPaddingDip(int v) => Clamp(v, MinContentPaddingDip, MaxContentPaddingDip);
+
+        private static int ClampChromeOpacity(int v) => Clamp(v, MinChromeOpacity, MaxChromeOpacity);
+
+        private static int Clamp(int v, int min, int max)
         {
-            if (v < MinWidth)
+            if (v < min)
             {
-                return MinWidth;
+                return min;
             }
 
-            return v > MaxWidth ? MaxWidth : v;
+            return v > max ? max : v;
         }
 
-        private static int ClampShowDelayMs(int v)
+        private static double Clamp(double v, double min, double max)
         {
-            if (v < MinShowDelayMs)
+            if (v < min)
             {
-                return MinShowDelayMs;
+                return min;
             }
 
-            return v > MaxShowDelayMs ? MaxShowDelayMs : v;
-        }
-
-        private static int ClampFieldBlockSpacingDip(int v)
-        {
-            if (v < MinFieldBlockSpacingDip)
-            {
-                return MinFieldBlockSpacingDip;
-            }
-
-            return v > MaxFieldBlockSpacingDip ? MaxFieldBlockSpacingDip : v;
-        }
-
-        private static int ClampContentPaddingDip(int v)
-        {
-            if (v < MinContentPaddingDip)
-            {
-                return MinContentPaddingDip;
-            }
-
-            return v > MaxContentPaddingDip ? MaxContentPaddingDip : v;
-        }
-
-        private static int ClampChromeOpacity(int v)
-        {
-            if (v < MinChromeOpacity)
-            {
-                return MinChromeOpacity;
-            }
-
-            return v > MaxChromeOpacity ? MaxChromeOpacity : v;
+            return v > max ? max : v;
         }
 
         private static List<string> NormalizeKeys(List<string> keys)
@@ -1333,35 +1088,6 @@ namespace GameHoverDetails
             }
 
             return list;
-        }
-
-        private void CoalesceDisabledOrder()
-        {
-            var all = HoverFieldCatalog.GetAllKeysInCatalogOrder();
-            var enabled = new HashSet<string>(selectedFieldKeys);
-            var next = new List<string>();
-            foreach (var k in disabledFieldKeysOrder)
-            {
-                if (HoverFieldCatalog.IsKnownKey(k) && !enabled.Contains(k) && !next.Contains(k))
-                {
-                    next.Add(k);
-                }
-            }
-
-            foreach (var k in all)
-            {
-                if (!enabled.Contains(k) && !next.Contains(k))
-                {
-                    next.Add(k);
-                }
-            }
-
-            if (ListsEqual(disabledFieldKeysOrder, next))
-            {
-                return;
-            }
-
-            SetValue(ref disabledFieldKeysOrder, next, nameof(DisabledFieldKeysOrder));
         }
 
         private static bool ListsEqual(List<string> a, List<string> b)

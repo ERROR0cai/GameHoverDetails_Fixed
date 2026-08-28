@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+﻿<?xml version="1.0"?>
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
@@ -8,9 +8,8 @@
     <sys:String x:Key="LOCGameHoverDetails_Settings_Heading">Innstillinger</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_TabFields">Fields</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_TabAppearance">Styling</sys:String>
-    <sys:String x:Key="LOCGameHoverDetails_Settings_TabTimingSize">Spacings</sys:String>
+    <sys:String x:Key="LOCGameHoverDetails_Settings_TabTimingSize">Layout</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_TabDisplay">Display</sys:String>
-    <sys:String x:Key="LOCGameHoverDetails_Settings_Display">Visning:</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_DisplayDescription">Set text size, then titles and icons.&#10;Extra options appear under each checkbox.</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_ShowTitles">Vis titler</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_ShowIcons">Vis ikoner</sys:String>
@@ -32,11 +31,7 @@
     <sys:String x:Key="LOCGameHoverDetails_Settings_IconBackgroundStyleArch">Arch</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_IconBackgroundStyleTile">Tile</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_IconBackgroundStyleLeaf">Leaf</sys:String>
-    <sys:String x:Key="LOCGameHoverDetails_Settings_Appearance">Utseende:</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_AppearanceDescription">Use game art or Playnite theme colors.&#10;Edit a color for custom; lower opacity frosts the library.</sys:String>
-    <sys:String x:Key="LOCGameHoverDetails_Settings_BackgroundStyle">Background style</sys:String>
-    <sys:String x:Key="LOCGameHoverDetails_Settings_BackgroundStyleRegular">Regular</sys:String>
-    <sys:String x:Key="LOCGameHoverDetails_Settings_BackgroundStyleGameCover">Game background</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_UseGameBackground">Use game background</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_UseThemeColors">Bruk Playnite-temafarger</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_Background">Bakgrunn</sys:String>
@@ -57,7 +52,6 @@
     <sys:String x:Key="LOCGameHoverDetails_Settings_PanelWidth">Bredde på hoverpanel</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_FieldSpacing">Avstand mellom feltrader</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_ListPadding">Padding around the list</sys:String>
-    <sys:String x:Key="LOCGameHoverDetails_Settings_Fields">Felt</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_FieldsDescription">Choose up to five details, top to bottom.&#10;Type to search. Reorder with ↑↓. Add field stays open.</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_AddField">Legg til et felt</sys:String>
     <sys:String x:Key="LOCGameHoverDetails_Settings_AddFieldSearch">Search fields</sys:String>

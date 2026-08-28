@@ -11,11 +11,7 @@
              Unloaded="UserControl_Unloaded">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
-        <Style x:Key="HoverPreviewFieldLabel" TargetType="TextBlock">
-            <Setter Property="FontWeight" Value="Normal" />
-            <Setter Property="Foreground" Value="#98989D" />
-            <Setter Property="Typography.Capitals" Value="AllSmallCaps" />
-        </Style>
+        <local:InvertBoolConverter x:Key="InvertBool" />
         <Style x:Key="SettingsFieldTitle" TargetType="Label" BasedOn="{StaticResource {x:Type Label}}">
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,0,0,4" />
@@ -156,7 +152,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="280" />
-            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="Auto" MinWidth="140" />
         </Grid.ColumnDefinitions>
 
         <Grid Grid.Column="0">
@@ -169,10 +165,10 @@
             <StackPanel Margin="16,16,16,0">
                 <CheckBox Content="{DynamicResource LOCGameHoverDetails_Settings_EnableHover}"
                           Margin="0,0,0,10"
-                          IsChecked="{Binding HoverDetailsEnabled, Mode=TwoWay}" />
+                          IsChecked="{Binding HoverDisabled, Converter={StaticResource InvertBool}, Mode=TwoWay}" />
                 <CheckBox Content="{DynamicResource LOCGameHoverDetails_Settings_ShowInFullscreen}"
-                          IsEnabled="{Binding HoverDetailsEnabled}"
-                          IsChecked="{Binding HoverDetailsEnabledInFullscreen, Mode=TwoWay}" />
+                          IsEnabled="{Binding HoverDisabled, Converter={StaticResource InvertBool}}"
+                          IsChecked="{Binding HoverDisabledInFullscreen, Converter={StaticResource InvertBool}, Mode=TwoWay}" />
             </StackPanel>
 
             <TextBlock Grid.Row="1"
@@ -353,9 +349,9 @@
                             <CheckBox Style="{StaticResource SettingsParentCheckBox}"
                                       Margin="0"
                                       Content="{DynamicResource LOCGameHoverDetails_Settings_ShowTitles}"
-                                      IsChecked="{Binding HoverTitlesInHover, Mode=TwoWay}" />
+                                      IsChecked="{Binding HideFieldTitlesInHover, Converter={StaticResource InvertBool}, Mode=TwoWay}" />
                             <StackPanel Style="{StaticResource SettingsNestedGroup}"
-                                        Visibility="{Binding HoverTitlesInHover, Converter={StaticResource BoolToVis}}">
+                                        Visibility="{Binding HideFieldTitlesInHover, Converter={StaticResource InvertBool}}">
                                 <Label Style="{StaticResource SettingsFieldLabel}"
                                        Content="{DynamicResource LOCGameHoverDetails_Settings_TitleTextSize}" />
                                 <Slider Minimum="8"
@@ -390,8 +386,8 @@
 
                                 <Label Style="{StaticResource SettingsFieldLabelSpaced}"
                                        Content="{DynamicResource LOCGameHoverDetails_Settings_IconSize}" />
-                                <Slider Minimum="24"
-                                        Maximum="48"
+                                <Slider Minimum="8"
+                                        Maximum="40"
                                         TickFrequency="1"
                                         IsSnapToTickEnabled="True"
                                         Value="{Binding HoverIconChipSizeDip, Mode=TwoWay}" />
@@ -410,7 +406,7 @@
 
                                 <CheckBox Style="{StaticResource SettingsParentCheckBox}"
                                           Content="{DynamicResource LOCGameHoverDetails_Settings_ShowIconBackground}"
-                                          IsChecked="{Binding ShowIconChipBackground, Mode=TwoWay}" />
+                                          IsChecked="{Binding HideIconChipBackground, Converter={StaticResource InvertBool}, Mode=TwoWay}" />
                                 <StackPanel Margin="0,12,0,0"
                                             Visibility="{Binding ShowIconBackgroundColorControls, Converter={StaticResource BoolToVis}}">
                                     <Label Style="{StaticResource SettingsFieldLabel}"
@@ -528,7 +524,7 @@
                             <CheckBox Style="{StaticResource SettingsParentCheckBox}"
                                       Margin="0"
                                       Content="{DynamicResource LOCGameHoverDetails_Settings_ShowBorder}"
-                                      IsChecked="{Binding ShowPanelBorder, Mode=TwoWay}" />
+                                      IsChecked="{Binding HidePanelBorder, Converter={StaticResource InvertBool}, Mode=TwoWay}" />
                             <Grid Style="{StaticResource SettingsNestedGroup}"
                                   Visibility="{Binding ShowBorderColorControls, Converter={StaticResource BoolToVis}}">
                                 <Grid.ColumnDefinitions>
@@ -558,7 +554,7 @@
                             <CheckBox Style="{StaticResource SettingsParentCheckBox}"
                                       Margin="0"
                                       Content="{DynamicResource LOCGameHoverDetails_Settings_ShowDividers}"
-                                      IsChecked="{Binding ShowFieldDividers, Mode=TwoWay}" />
+                                      IsChecked="{Binding HideFieldDividers, Converter={StaticResource InvertBool}, Mode=TwoWay}" />
                             <Grid Style="{StaticResource SettingsNestedGroup}"
                                   Visibility="{Binding ShowDividerColorControls, Converter={StaticResource BoolToVis}}">
                                 <Grid.ColumnDefinitions>
@@ -615,6 +611,16 @@
                                        Text="{Binding HoverWidth, StringFormat='{}{0} px'}" />
 
                             <Label Style="{StaticResource SettingsFieldLabelSpaced}"
+                                   Content="{DynamicResource LOCGameHoverDetails_Settings_FieldColumns}" />
+                            <Slider Minimum="1"
+                                    Maximum="3"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding HoverFieldColumnCount, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource SettingsSliderValue}"
+                                       Text="{Binding HoverFieldColumnCount}" />
+
+                            <Label Style="{StaticResource SettingsFieldLabelSpaced}"
                                    Content="{DynamicResource LOCGameHoverDetails_Settings_FieldSpacing}" />
                             <Slider Minimum="4"
                                     Maximum="36"
@@ -640,7 +646,7 @@
             </TabControl>
         </Grid>
 
-        <!-- Live preview: Display + Timing & size (width, spacing, titles, icons, enable) -->
+        <!-- Live preview: Display + Layout (width, columns, spacing, titles, icons, enable) -->
         <StackPanel Grid.Column="1"
                     Margin="6,16,8,16"
                     VerticalAlignment="Top"
@@ -650,236 +656,51 @@
                        FontWeight="SemiBold"
                        Margin="0,0,0,8" />
 
-            <Border x:Name="PreviewChromeBorder"
+            <Grid HorizontalAlignment="Left"
+                  Margin="0,0,4,0">
+                <Border Background="#48000000"
+                        CornerRadius="8"
+                        Margin="0,2,0,0"
+                        IsHitTestVisible="False" />
+                <Border x:Name="PreviewChromeBorder"
                     HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
                     MinWidth="120"
-                    MaxWidth="{Binding PreviewChromeMaxWidth}"
                     Width="{Binding HoverWidth}"
+                    MaxWidth="{Binding HoverWidth}"
                     CornerRadius="8"
                     BorderThickness="1"
                     BorderBrush="#48484E"
                     Background="#1C1C1E"
                     Padding="0"
-                    Margin="0,0,4,0"
                     UseLayoutRounding="True"
                     SnapsToDevicePixels="True">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="14"
-                                      ShadowDepth="2"
-                                      Opacity="0.32"
-                                      Direction="270"
-                                      Color="Black" />
-                </Border.Effect>
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Opacity" Value="1" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding HoverDetailsEnabled}" Value="False">
+                            <DataTrigger Binding="{Binding HoverDisabled}" Value="True">
                                 <Setter Property="Opacity" Value="0.4" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
                 <Grid x:Name="PreviewChromeBody">
-                    <Canvas ClipToBounds="True"
+                    <Border x:Name="PreviewCoverHost"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
-                            IsHitTestVisible="False">
-                        <Image x:Name="PreviewCoverImage"
-                               Stretch="UniformToFill"
-                               Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Canvas}}"
-                               Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"
-                               Visibility="Collapsed"
-                               IsHitTestVisible="False" />
-                    </Canvas>
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed" />
                     <Border x:Name="PreviewCoverTint"
                             Background="#FF000000"
                             Visibility="Collapsed"
                             IsHitTestVisible="False" />
-                    <ItemsControl x:Name="PreviewFieldsList"
-                                  Margin="14,12"
-                                  VerticalAlignment="Top"
-                                  FontFamily="{DynamicResource FontFamily}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="Transparent"
-                                    Margin="{Binding ContentBlockMargin}">
-                                <StackPanel>
-                                    <Border Height="{Binding SeparatorLineHeight}"
-                                            Margin="{Binding SeparatorMargin}"
-                                            Background="{Binding SeparatorBrush}"
-                                            Visibility="{Binding ShowTopSeparator, Converter={StaticResource BoolToVis}}" />
-
-                                    <!-- Game art (stacked); hidden when Icon is the only field — hover uses name beside icon. -->
-                                    <StackPanel Margin="{Binding ContinuationRowOutermostMargin}"
-                                                Visibility="{Binding ShowArtVerticalStack, Converter={StaticResource BoolToVis}}">
-                                        <Image Stretch="Uniform"
-                                               HorizontalAlignment="Left"
-                                               MaxWidth="{Binding PreviewArtMaxWidth}"
-                                               MaxHeight="{Binding PreviewArtMaxHeight}"
-                                               Source="{Binding PreviewArt}" />
-                                        <TextBlock Margin="0,4,0,0"
-                                                   FontSize="{Binding BodyFontSize}"
-                                                   Foreground="{Binding BodyForeground}"
-                                                   TextWrapping="Wrap"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   LineHeight="{Binding BodyLineHeight}"
-                                                   MaxHeight="{Binding BodyMaxHeight}"
-                                                   ClipToBounds="True"
-                                                   Text="{Binding SampleValue}"
-                                                   Visibility="{Binding ShowSampleText, Converter={StaticResource BoolToVis}}" />
-                                    </StackPanel>
-
-                                    <!-- Icon-only + art: game name beside icon (matches hover vertical alignment). -->
-                                    <Grid Margin="{Binding ContinuationRowOutermostMargin}"
-                                          Visibility="{Binding ShowIconBesideGameNameRow, Converter={StaticResource BoolToVis}}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Image Grid.Column="0"
-                                               Width="40"
-                                               Height="40"
-                                               VerticalAlignment="Center"
-                                               HorizontalAlignment="Left"
-                                               Stretch="Uniform"
-                                               MaxWidth="{Binding PreviewArtMaxWidth}"
-                                               MaxHeight="{Binding PreviewArtMaxHeight}"
-                                               Source="{Binding PreviewArt}" />
-                                        <TextBlock Grid.Column="1"
-                                                   Margin="10,0,0,0"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="{Binding BodyFontSize}"
-                                                   Foreground="{Binding BodyForeground}"
-                                                   TextWrapping="Wrap"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   LineHeight="{Binding BodyLineHeight}"
-                                                   MaxHeight="{Binding BodyMaxHeight}"
-                                                   MaxWidth="{Binding BesideIconNameMaxWidth}"
-                                                   ClipToBounds="True"
-                                                   Text="{Binding BesideIconGameName}" />
-                                    </Grid>
-
-                                    <!-- Title + icon + value (stat row) -->
-                                    <Grid Margin="{Binding ContinuationRowOutermostMargin}"
-                                          Visibility="{Binding ShowStatRowLayout, Converter={StaticResource BoolToVis}}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0"
-                                                Width="{Binding ChipSize}"
-                                                Height="{Binding ChipSize}"
-                                                CornerRadius="{Binding ChipCornerRadius}"
-                                                Background="{Binding ChipBackground}"
-                                                VerticalAlignment="Center"
-                                                HorizontalAlignment="Left">
-                                            <TextBlock FontFamily="{Binding GlyphFontFamily}"
-                                                       FontSize="{Binding GlyphFontSize}"
-                                                       FontWeight="Normal"
-                                                       FlowDirection="LeftToRight"
-                                                       Foreground="{Binding ChipGlyphForeground}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"
-                                                       Text="{Binding GlyphText}" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1"
-                                                    Margin="10,0,0,0">
-                                            <TextBlock Margin="0,0,0,4"
-                                                       Style="{StaticResource HoverPreviewFieldLabel}"
-                                                       FontSize="{Binding TitleFontSize}"
-                                                       LineHeight="{Binding TitleLineHeight}"
-                                                       Foreground="{Binding LabelForeground}"
-                                                       MaxWidth="{Binding StatTextMaxWidth}"
-                                                       Text="{Binding DisplayName}" />
-                                            <TextBlock FontSize="{Binding BodyFontSize}"
-                                                       Foreground="{Binding BodyForeground}"
-                                                       TextWrapping="Wrap"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       LineHeight="{Binding BodyLineHeight}"
-                                                       MaxHeight="{Binding BodyMaxHeight}"
-                                                       MaxWidth="{Binding StatTextMaxWidth}"
-                                                       ClipToBounds="True"
-                                                       Text="{Binding SampleValue}"
-                                                       Visibility="{Binding ShowSampleText, Converter={StaticResource BoolToVis}}" />
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <!-- Title + value (no icon) -->
-                                    <StackPanel Visibility="{Binding ShowTitleBodyNoIconLayout, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Margin="{Binding PreviewFieldTitleMargin}"
-                                                   Style="{StaticResource HoverPreviewFieldLabel}"
-                                                   FontSize="{Binding TitleFontSize}"
-                                                   LineHeight="{Binding TitleLineHeight}"
-                                                   Foreground="{Binding LabelForeground}"
-                                                   Text="{Binding DisplayName}" />
-                                        <TextBlock FontSize="{Binding BodyFontSize}"
-                                                   Foreground="{Binding BodyForeground}"
-                                                   TextWrapping="Wrap"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   LineHeight="{Binding BodyLineHeight}"
-                                                   MaxHeight="{Binding BodyMaxHeight}"
-                                                   ClipToBounds="True"
-                                                   Text="{Binding SampleValue}"
-                                                   Visibility="{Binding ShowSampleText, Converter={StaticResource BoolToVis}}" />
-                                    </StackPanel>
-
-                                    <!-- Icon chip + value (no title) -->
-                                    <Grid Margin="{Binding ContinuationRowOutermostMargin}"
-                                          Visibility="{Binding ShowChipValueNoTitleLayout, Converter={StaticResource BoolToVis}}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0"
-                                                Width="{Binding ChipSize}"
-                                                Height="{Binding ChipSize}"
-                                                CornerRadius="{Binding ChipCornerRadius}"
-                                                Background="{Binding ChipBackground}"
-                                                VerticalAlignment="Center"
-                                                HorizontalAlignment="Left">
-                                            <TextBlock FontFamily="{Binding GlyphFontFamily}"
-                                                       FontSize="{Binding GlyphFontSize}"
-                                                       FontWeight="Normal"
-                                                       FlowDirection="LeftToRight"
-                                                       Foreground="{Binding ChipGlyphForeground}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"
-                                                       Text="{Binding GlyphText}" />
-                                        </Border>
-                                        <TextBlock Grid.Column="1"
-                                                   Margin="10,0,0,0"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="{Binding BodyFontSize}"
-                                                   Foreground="{Binding BodyForeground}"
-                                                   TextWrapping="Wrap"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   LineHeight="{Binding BodyLineHeight}"
-                                                   MaxHeight="{Binding BodyMaxHeight}"
-                                                   MaxWidth="{Binding StatTextMaxWidth}"
-                                                   ClipToBounds="True"
-                                                   Text="{Binding SampleValue}"
-                                                   Visibility="{Binding ShowSampleText, Converter={StaticResource BoolToVis}}" />
-                                    </Grid>
-
-                                    <!-- Value only -->
-                                    <TextBlock Margin="{Binding ContinuationRowOutermostMargin}"
-                                               FontSize="{Binding BodyFontSize}"
-                                               Foreground="{Binding BodyForeground}"
-                                               TextWrapping="Wrap"
-                                               TextTrimming="CharacterEllipsis"
-                                               LineHeight="{Binding BodyLineHeight}"
-                                               MaxHeight="{Binding BodyMaxHeight}"
-                                               ClipToBounds="True"
-                                               Text="{Binding SampleValue}"
-                                               Visibility="{Binding ShowValueOnlyLayout, Converter={StaticResource BoolToVis}}" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    <StackPanel x:Name="PreviewFieldsHost"
+                                Margin="14,12"
+                                VerticalAlignment="Top" />
                 </Grid>
             </Border>
+            </Grid>
         </StackPanel>
     </Grid>
 </UserControl>

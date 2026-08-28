@@ -31,6 +31,7 @@ namespace GameHoverDetails
         private ImageSource cachedPreviewCover;
         private readonly Dictionary<string, ImageSource> previewArtByField = new Dictionary<string, ImageSource>();
         private bool attaching;
+        private bool unloading;
         private bool previewRefreshQueued;
 
         /// <summary>Stable ItemsSource for Add field — sync in place so the open dropdown does not close/reopen on each add.</summary>
@@ -79,140 +80,6 @@ namespace GameHoverDetails
             public FontFamily GlyphFontFamily => HoverFieldCatalog.GetGlyphFontFamily(IconStyle);
         }
 
-        private sealed class PreviewFieldRow
-        {
-            public PreviewFieldRow(
-                string fieldKey,
-                string displayName,
-                string sampleValue,
-                string glyphText,
-                bool showInlineGlyph,
-                bool showFieldTitleRow,
-                bool showTopSeparator,
-                double separatorPadDip,
-                bool isLastBlock,
-                double fieldBlockSpacingDip,
-                ImageSource previewArt,
-                double previewInnerContentWidthDip,
-                bool showIconBesideGameName,
-                string besideIconGameName,
-                HoverChromePalette palette,
-                GameHoverDetailsSettings settings)
-            {
-                DisplayName = displayName;
-                SampleValue = sampleValue ?? string.Empty;
-                GlyphText = glyphText;
-                ShowInlineGlyph = showInlineGlyph;
-                ShowFieldTitleRow = showFieldTitleRow;
-                ShowTopSeparator = showTopSeparator;
-                SeparatorPadDip = separatorPadDip;
-                ContentBlockMargin = new Thickness(0, 0, 0, isLastBlock ? 0 : fieldBlockSpacingDip * 0.5);
-                PreviewArt = previewArt;
-                ShowIconBesideGameName = showIconBesideGameName;
-                BesideIconGameName = besideIconGameName ?? string.Empty;
-                BodyForeground = palette?.BodyText;
-                LabelForeground = palette?.LabelText;
-                ChipBackground = palette?.GlyphChipBackground;
-                ChipGlyphForeground = palette?.GlyphChipGlyph;
-                SeparatorBrush = palette?.Separator;
-                SeparatorLineHeight = settings != null && settings.HideFieldDividers ? 0 : 1;
-                var chip = settings != null
-                    ? (double)settings.HoverIconChipOuterSizeDip
-                    : GameHoverDetailsSettings.DefaultIconChipSizeDip;
-                ChipSize = chip;
-                ChipCornerRadius = settings != null
-                    ? settings.ResolveIconChipCornerRadius()
-                    : new CornerRadius(chip / 2);
-                GlyphFontSize = settings?.HoverIconGlyphFontSize ?? 15;
-                GlyphFontFamily = HoverFieldCatalog.GetGlyphFontFamily(settings?.HoverIconStyle);
-                BodyFontSize = settings?.HoverBodyFontSize ?? GameHoverDetailsSettings.DefaultBodyFontSize;
-                BodyLineHeight = settings?.HoverBodyLineHeight ?? 18;
-                BodyMaxHeight = BodyLineHeight * HoverDetailValuePresenter.MaxValueLines;
-                TitleFontSize = settings?.HoverTitleFontSize ?? GameHoverDetailsSettings.DefaultTitleFontSize;
-                TitleLineHeight = settings?.HoverTitleLineHeight ?? 14;
-                BesideIconNameMaxWidth = showIconBesideGameName
-                    ? System.Math.Max(48.0, previewInnerContentWidthDip - 40.0 - 10.0)
-                    : 0;
-                StatTextMaxWidth = System.Math.Max(48.0, previewInnerContentWidthDip - chip - 10.0);
-                if (previewArt != null)
-                {
-                    switch (fieldKey)
-                    {
-                        case "Icon":
-                            PreviewArtMaxWidth = 40;
-                            PreviewArtMaxHeight = 40;
-                            break;
-                        case "CoverImage":
-                            PreviewArtMaxWidth = previewInnerContentWidthDip;
-                            PreviewArtMaxHeight = 220;
-                            break;
-                        default:
-                            PreviewArtMaxWidth = previewInnerContentWidthDip;
-                            PreviewArtMaxHeight = 140;
-                            break;
-                    }
-                }
-            }
-
-            public string DisplayName { get; }
-            public string SampleValue { get; }
-            public string GlyphText { get; }
-            public FontFamily GlyphFontFamily { get; }
-            public double ChipSize { get; }
-            public CornerRadius ChipCornerRadius { get; }
-            public double GlyphFontSize { get; }
-            public double BodyFontSize { get; }
-            public double BodyLineHeight { get; }
-            public double BodyMaxHeight { get; }
-            public double TitleFontSize { get; }
-            public double TitleLineHeight { get; }
-            public bool ShowInlineGlyph { get; }
-            /// <summary>Title row matches hover: off for game-art keys (Icon, cover, background).</summary>
-            public bool ShowFieldTitleRow { get; }
-            public bool ShowTopSeparator { get; }
-            public double SeparatorPadDip { get; }
-            /// <summary>Bottom half-inset after each block (pairs with separator + next block top half); zero on last row (matches hover after <c>TrimLastContentBottomMargin</c>).</summary>
-            public Thickness ContentBlockMargin { get; }
-            public Thickness SeparatorMargin => new Thickness(0, SeparatorPadDip, 0, SeparatorPadDip);
-            public ImageSource PreviewArt { get; }
-            public bool ShowPreviewArt => PreviewArt != null;
-            public bool ShowSampleText => !ShowPreviewArt || !string.IsNullOrWhiteSpace(SampleValue);
-            public double PreviewArtMaxWidth { get; }
-            public double PreviewArtMaxHeight { get; }
-            public double StatTextMaxWidth { get; }
-            /// <summary>When Icon is the only selected field and art loads, hover shows game name beside the icon (vertically centered).</summary>
-            public bool ShowIconBesideGameName { get; }
-            public string BesideIconGameName { get; }
-            public double BesideIconNameMaxWidth { get; }
-            public Brush BodyForeground { get; }
-            public Brush LabelForeground { get; }
-            public Brush ChipBackground { get; }
-            public Brush ChipGlyphForeground { get; }
-            public Brush SeparatorBrush { get; }
-            public double SeparatorLineHeight { get; }
-            public bool ShowArtVerticalStack => ShowPreviewArt && !ShowIconBesideGameName;
-            public bool ShowIconBesideGameNameRow => ShowIconBesideGameName;
-
-            public bool ShowStatRowLayout => !ShowPreviewArt && ShowFieldTitleRow && ShowInlineGlyph;
-
-            public bool ShowTitleBodyNoIconLayout => !ShowPreviewArt && ShowFieldTitleRow && !ShowInlineGlyph;
-
-            public bool ShowChipValueNoTitleLayout => !ShowPreviewArt && !ShowFieldTitleRow && ShowInlineGlyph;
-
-            public bool ShowValueOnlyLayout => !ShowPreviewArt && !ShowFieldTitleRow && !ShowInlineGlyph;
-
-            private const double FieldTitleToValueGapDip = 4;
-
-            /// <summary>Muted title row: after a separator, top padding matches hover <c>AppendTextDetailInner</c> label <c>topInset</c> (half of field spacing).</summary>
-            public Thickness PreviewFieldTitleMargin =>
-                new Thickness(0, ShowTopSeparator ? SeparatorPadDip : 0, 0, FieldTitleToValueGapDip);
-
-            /// <summary>Stat/chip row: whole grid gets top inset after a divider (hover applies <c>topInset</c> on the outer grid).</summary>
-            public Thickness ContinuationRowOutermostMargin =>
-                new Thickness(0, ShowTopSeparator ? SeparatorPadDip : 0, 0, 0);
-
-        }
-
         public GameHoverDetailsSettingsView()
         {
             InitializeComponent();
@@ -220,6 +87,7 @@ namespace GameHoverDetails
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
+            unloading = false;
             ApplyLayoutFlow();
             if (FieldsList != null && !fieldsListWheelHooked)
             {
@@ -312,6 +180,8 @@ namespace GameHoverDetails
 
         private void UserControl_Unloaded(object sender, RoutedEventArgs e)
         {
+            unloading = true;
+            previewRefreshQueued = false;
             if (FieldsList != null && fieldsListWheelHooked)
             {
                 FieldsList.PreviewMouseWheel -= FieldsList_PreviewMouseWheel;
@@ -370,13 +240,12 @@ namespace GameHoverDetails
 
         private void BoundSettingsOnPropertyChanged(object o, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (attaching || boundSettings == null || boundSettings.SuppressSettingsViewRebuilds)
+            if (attaching || unloading || boundSettings == null || boundSettings.SuppressSettingsViewRebuilds)
             {
                 return;
             }
 
             if (e.PropertyName == nameof(GameHoverDetailsSettings.SelectedFieldKeys) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.DisabledFieldKeysOrder) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.SelectedFieldCount))
             {
                 RefreshFieldsList();
@@ -406,15 +275,12 @@ namespace GameHoverDetails
             }
 
             if (e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldTitlesInHover) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitlesInHover) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.ShowFieldInlineIconsInHover) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HideIconChipBackground) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.ShowIconChipBackground) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldDividers) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.ShowFieldDividers) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HidePanelBorder) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.ShowPanelBorder) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldBlockSpacingDip) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldColumnCount) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverContentPaddingDip) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverWidth) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundHex) ||
@@ -423,7 +289,6 @@ namespace GameHoverDetails
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeIconBackgroundHex) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundOpacity) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverBackgroundStyle) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverBackgroundStyleIndex) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.UseGameBackground) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverBodyFontSize) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitleFontSize) ||
@@ -441,7 +306,7 @@ namespace GameHoverDetails
 
         private void QueuePreviewRefresh()
         {
-            if (previewRefreshQueued || attaching || boundSettings == null || boundSettings.SuppressSettingsViewRebuilds)
+            if (previewRefreshQueued || attaching || unloading || boundSettings == null || boundSettings.SuppressSettingsViewRebuilds)
             {
                 return;
             }
@@ -451,7 +316,7 @@ namespace GameHoverDetails
                 (Action)(() =>
                 {
                     previewRefreshQueued = false;
-                    if (boundSettings == null || attaching || boundSettings.SuppressSettingsViewRebuilds)
+                    if (unloading || boundSettings == null || attaching || boundSettings.SuppressSettingsViewRebuilds)
                     {
                         return;
                     }
@@ -464,92 +329,93 @@ namespace GameHoverDetails
 
         private void RefreshPreviewFields()
         {
-            if (PreviewFieldsList == null || boundSettings == null)
+            if (PreviewFieldsHost == null || boundSettings == null)
             {
                 return;
             }
 
-            var spacing = (double)System.Math.Max(4, System.Math.Min(36, boundSettings.HoverFieldBlockSpacingDip));
-            var showGlyph = boundSettings.ShowFieldInlineIconsInHover;
-            var showTitles = boundSettings.HoverTitlesInHover;
             var api = boundSettings.TryGetPlayniteApi();
             var game = previewSampleGame;
-            var previewCap = boundSettings.PreviewChromeMaxWidth;
-            var previewChromeWidth = System.Math.Min(previewCap, System.Math.Max(120, boundSettings.ResolveHoverPanelWidth()));
+            var previewChromeWidth = System.Math.Max(120, boundSettings.ResolveHoverPanelWidth());
             var pad = ClampPreviewContentPaddingDip(boundSettings.HoverContentPaddingDip);
-            var chromeHorizontalPadding = pad * 2.0;
-            var previewInnerContentWidth = System.Math.Max(48.0, previewChromeWidth - chromeHorizontalPadding);
-            var separatorPad = spacing * 0.5;
+            var innerMax = System.Math.Max(60.0, previewChromeWidth - (pad * 2.0));
             var palette = HoverChromePalette.Resolve(boundSettings);
-            var rows = new List<PreviewFieldRow>();
             var keyList = boundSettings.SelectedFieldKeys.Where(HoverFieldCatalog.IsKnownKey).ToList();
-            var iconOnlyBesideName = keyList.Count == 1 && keyList[0] == "Icon";
-            for (var i = 0; i < keyList.Count; i++)
-            {
-                var key = keyList[i];
-                var isLastBlock = i == keyList.Count - 1;
 
-                var displayName = HoverFieldCatalog.GetDisplayName(key);
-                var glyph = HoverFieldCatalog.GetGlyph(key, boundSettings.HoverIconStyle);
-                var inline = showGlyph && !HoverFieldCatalog.IsGameArtImageField(key);
-                var showFieldTitleRow = showTitles && !HoverFieldCatalog.IsGameArtImageField(key);
-                var showTopSeparator = i > 0;
-
-                string sample;
-                ImageSource art = null;
-                if (game != null && api != null)
+            HoverFieldListBuilder.Fill(
+                PreviewFieldsHost,
+                boundSettings,
+                palette,
+                keyList,
+                innerMax,
+                new HoverFieldListSource
                 {
-                    if (HoverFieldCatalog.IsGameArtImageField(key))
+                    OmitEmptyArt = false,
+                    TryGetGameArt = key =>
                     {
-                        art = GetCachedPreviewArt(key, game, api);
+                        if (game == null || api == null)
+                        {
+                            return null;
+                        }
+
+                        var art = GetCachedPreviewArt(key, game, api);
                         if (key == "Icon" && art == null)
                         {
                             art = TryLoadFallbackLibraryGameIcon(api, game);
                         }
 
-                        sample = art != null ? string.Empty : HoverPreviewSampleText.ForKey(key);
-                    }
-                    else
+                        return art;
+                    },
+                    TryGetPlatformIcons = () =>
                     {
-                        var raw = HoverFieldFormatter.Format(key, game, api);
-                        var preview = HoverPreviewSampleText.FormatValueForPreview(key, raw);
-                        sample = HoverPreviewSampleText.LooksLikeMissingData(preview)
-                            ? HoverPreviewSampleText.ForKey(key)
-                            : preview;
+                        if (game?.Platforms == null || api == null)
+                        {
+                            return null;
+                        }
+
+                        var list = new List<ImageSource>();
+                        foreach (var platform in game.Platforms)
+                        {
+                            var iconBmp = HoverBitmapLoader.TryLoadPlatformIcon(platform, api);
+                            if (iconBmp != null)
+                            {
+                                list.Add(iconBmp);
+                            }
+                        }
+
+                        return list;
+                    },
+                    FormatValue = key =>
+                    {
+                        if (game != null && api != null)
+                        {
+                            var raw = HoverFieldFormatter.Format(key, game, api);
+                            var preview = HoverPreviewSampleText.FormatValueForPreview(key, raw);
+                            if (!HoverPreviewSampleText.LooksLikeMissingData(preview))
+                            {
+                                return preview;
+                            }
+                        }
+
+                        return HoverPreviewSampleText.ForKey(key);
                     }
-                }
-                else
-                {
-                    sample = HoverPreviewSampleText.ForKey(key);
-                }
-
-                var showBesideName = iconOnlyBesideName && key == "Icon" && art != null;
-                var besideName = !showBesideName
-                    ? string.Empty
-                    : game != null
-                        ? HoverFieldFormatter.Format("Name", game, api)
-                        : HoverPreviewSampleText.ForKey("Name");
-
-                rows.Add(new PreviewFieldRow(
-                    key,
-                    displayName,
-                    sample,
-                    glyph,
-                    inline,
-                    showFieldTitleRow,
-                    showTopSeparator,
-                    separatorPad,
-                    isLastBlock,
-                    spacing,
-                    art,
-                    previewInnerContentWidth,
-                    showBesideName,
-                    besideName,
-                    palette,
-                    boundSettings));
+                });
+            PreviewFieldsHost.ClearValue(FrameworkElement.HeightProperty);
+            PreviewFieldsHost.ClearValue(FrameworkElement.MinHeightProperty);
+            PreviewFieldsHost.InvalidateMeasure();
+            if (PreviewChromeBorder != null)
+            {
+                PreviewChromeBorder.ClearValue(FrameworkElement.HeightProperty);
+                PreviewChromeBorder.MinHeight = 0;
+                PreviewChromeBorder.InvalidateMeasure();
             }
 
-            PreviewFieldsList.ItemsSource = rows;
+            if (PreviewChromeBody != null)
+            {
+                PreviewChromeBody.ClearValue(FrameworkElement.HeightProperty);
+                PreviewChromeBody.ClearValue(FrameworkElement.MinHeightProperty);
+                PreviewChromeBody.InvalidateMeasure();
+            }
         }
 
         private ImageSource GetCachedPreviewArt(string fieldKey, Game game, IPlayniteAPI api)
@@ -565,6 +431,7 @@ namespace GameHoverDetails
         }
 
         private const int MaxFallbackArtLoads = 8;
+        private const int MaxFallbackArtScan = 32;
         private const int MaxSampleGameScan = 80;
 
         /// <summary>
@@ -590,11 +457,18 @@ namespace GameHoverDetails
             }
 
             var attempts = 0;
+            var scanned = 0;
             foreach (var g in api.Database.Games)
             {
                 if (g == null)
                 {
                     continue;
+                }
+
+                scanned++;
+                if (scanned > MaxFallbackArtScan)
+                {
+                    return null;
                 }
 
                 if (skipGame != null && g.Id == skipGame.Id)
@@ -1108,7 +982,7 @@ namespace GameHoverDetails
                 return;
             }
 
-            boundSettings.DisableFieldAt(row.Index, 0);
+            boundSettings.DisableFieldAt(row.Index);
         }
 
         private void ApplyPreviewChrome()
@@ -1120,10 +994,24 @@ namespace GameHoverDetails
 
             var cover = boundSettings.IsGameCoverBackgroundStyle ? TryLoadPreviewCover() : null;
             var coverActive = cover != null;
-            if (PreviewCoverImage != null)
+            if (PreviewCoverHost != null)
             {
-                PreviewCoverImage.Source = cover;
-                PreviewCoverImage.Visibility = coverActive ? Visibility.Visible : Visibility.Collapsed;
+                if (coverActive)
+                {
+                    PreviewCoverHost.Background = new ImageBrush(cover)
+                    {
+                        Stretch = Stretch.UniformToFill,
+                        AlignmentX = AlignmentX.Center,
+                        AlignmentY = AlignmentY.Center,
+                        TileMode = TileMode.None
+                    };
+                    PreviewCoverHost.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    PreviewCoverHost.Background = null;
+                    PreviewCoverHost.Visibility = Visibility.Collapsed;
+                }
             }
 
             if (PreviewCoverTint != null)
@@ -1146,11 +1034,11 @@ namespace GameHoverDetails
             HoverChromePalette.ApplyToChromeBorder(PreviewChromeBorder, boundSettings, coverActive);
             PreviewChromeBorder.MaxHeight = double.PositiveInfinity;
             PreviewChromeBorder.MinHeight = 0;
-            if (PreviewFieldsList != null)
+            if (PreviewFieldsHost != null)
             {
                 var pad = ClampPreviewContentPaddingDip(boundSettings.HoverContentPaddingDip);
-                PreviewFieldsList.Margin = new Thickness(pad, pad, pad, pad);
-                PreviewFieldsList.VerticalAlignment = VerticalAlignment.Top;
+                PreviewFieldsHost.Margin = new Thickness(pad, pad, pad, pad);
+                PreviewFieldsHost.VerticalAlignment = VerticalAlignment.Top;
             }
 
             UpdatePreviewCoverClip();
@@ -1192,7 +1080,7 @@ namespace GameHoverDetails
                 return null;
             }
 
-            var bmp = HoverBitmapLoader.TryLoadGameArt("BackgroundImage", previewSampleGame, api, 720);
+            var bmp = HoverBitmapLoader.TryLoadGameArt("BackgroundImage", previewSampleGame, api, 480);
             if (bmp != null)
             {
                 cachedPreviewCover = bmp;

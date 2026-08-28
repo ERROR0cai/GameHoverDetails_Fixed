@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Threading;
 using Playnite.SDK;
@@ -45,6 +46,38 @@ namespace GameHoverDetails
             hoverService?.NotifySettingsChanged();
         }
 
+        private static readonly HashSet<string> HoverRefreshPropertyNames = new HashSet<string>
+        {
+            nameof(GameHoverDetailsSettings.HoverWidth),
+            nameof(GameHoverDetailsSettings.ShowDelayMs),
+            nameof(GameHoverDetailsSettings.HoverDisabled),
+            nameof(GameHoverDetailsSettings.HoverDisabledInFullscreen),
+            nameof(GameHoverDetailsSettings.HideFieldTitlesInHover),
+            nameof(GameHoverDetailsSettings.ShowFieldInlineIconsInHover),
+            nameof(GameHoverDetailsSettings.HideIconChipBackground),
+            nameof(GameHoverDetailsSettings.HideFieldDividers),
+            nameof(GameHoverDetailsSettings.HidePanelBorder),
+            nameof(GameHoverDetailsSettings.HoverBodyFontSize),
+            nameof(GameHoverDetailsSettings.HoverTitleFontSize),
+            nameof(GameHoverDetailsSettings.HoverIconStyle),
+            nameof(GameHoverDetailsSettings.HoverIconChipSizeDip),
+            nameof(GameHoverDetailsSettings.HoverIconChipPaddingDip),
+            nameof(GameHoverDetailsSettings.HoverIconChipShape),
+            nameof(GameHoverDetailsSettings.UseThemeChrome),
+            nameof(GameHoverDetailsSettings.HoverBackgroundStyle),
+            nameof(GameHoverDetailsSettings.UseGameBackground),
+            nameof(GameHoverDetailsSettings.HoverChromeBackgroundHex),
+            nameof(GameHoverDetailsSettings.HoverChromeBorderHex),
+            nameof(GameHoverDetailsSettings.HoverChromeDividerHex),
+            nameof(GameHoverDetailsSettings.HoverChromeIconBackgroundHex),
+            nameof(GameHoverDetailsSettings.HoverChromeBackgroundOpacity),
+            nameof(GameHoverDetailsSettings.HoverFieldBlockSpacingDip),
+            nameof(GameHoverDetailsSettings.HoverFieldColumnCount),
+            nameof(GameHoverDetailsSettings.HoverContentPaddingDip),
+            nameof(GameHoverDetailsSettings.SelectedFieldKeys),
+            nameof(GameHoverDetailsSettings.SelectedFieldCount)
+        };
+
         private void SettingsOnPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (settings.SuppressHoverLiveUpdates)
@@ -52,41 +85,7 @@ namespace GameHoverDetails
                 return;
             }
 
-            if (e.PropertyName == nameof(GameHoverDetailsSettings.HoverWidth) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.ShowDelayMs) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverDisabled) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverDetailsEnabled) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverDisabledInFullscreen) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverDetailsEnabledInFullscreen) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldTitlesInHover) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitlesInHover) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.ShowFieldInlineIconsInHover) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HideIconChipBackground) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.ShowIconChipBackground) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldDividers) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.ShowFieldDividers) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HidePanelBorder) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.ShowPanelBorder) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverBodyFontSize) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverTitleFontSize) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconStyle) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconChipSizeDip) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconChipPaddingDip) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverIconChipShape) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.UseThemeChrome) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverBackgroundStyle) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverBackgroundStyleIndex) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.UseGameBackground) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundHex) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBorderHex) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeDividerHex) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeIconBackgroundHex) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverChromeBackgroundOpacity) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldBlockSpacingDip) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.HoverContentPaddingDip) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.SelectedFieldKeys) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.DisabledFieldKeysOrder) ||
-                e.PropertyName == nameof(GameHoverDetailsSettings.SelectedFieldCount))
+            if (e.PropertyName != null && HoverRefreshPropertyNames.Contains(e.PropertyName))
             {
                 hoverService?.NotifySettingsChanged();
             }
