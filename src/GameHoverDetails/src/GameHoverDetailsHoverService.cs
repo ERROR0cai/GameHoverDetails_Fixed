@@ -532,22 +532,65 @@ namespace GameHoverDetails
             {
                 return;
             }
-
+        
             Game resolvedGame = null;
             FrameworkElement outerGameFe = null;
-            for (var current = hit; current != null; current = VisualTreeHelper.GetParent(current))
+        
+            // Use safe parent traversal
+            for (var current = hit; current != null;)
             {
+                // Securely obtain the parent
+                DependencyObject parent = null;
+                try
+                {
+                    parent = VisualTreeHelper.GetParent(current);
+                }
+                catch
+                {
+                    // If current is not of type Visual/Visual3D (e.g., Hyperlink, Run, Bold, etc.).
+                    // Try to get the parent using LogicalTreeHelper
+                    try
+                    {
+                        // For document elements (Run, Bold, Hyperlink, Paragraph, etc.)
+                        if (current is FrameworkContentElement contentElement)
+                        {
+                            parent = contentElement.Parent as DependencyObject;
+                        }
+                        // For other non-visual objects
+                        else
+                        {
+                            // Try to get the Parent property using reflection.
+                            var prop = current.GetType().GetProperty("Parent");
+                            if (prop != null)
+                            {
+                                parent = prop.GetValue(current, null) as DependencyObject;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // All attempts failed, stop iterating.
+                        break;
+                    }
+                }
+        
+                current = parent;
+                if (current == null)
+                {
+                    break;
+                }
+        
                 if (!(current is FrameworkElement fe))
                 {
                     continue;
                 }
-
+        
                 var g = TryGetGameFromDataContext(fe.DataContext);
                 if (g == null)
                 {
                     continue;
                 }
-
+        
                 if (resolvedGame == null)
                 {
                     resolvedGame = g;
@@ -562,28 +605,63 @@ namespace GameHoverDetails
                     break;
                 }
             }
-
+        
             if (resolvedGame == null || outerGameFe == null)
             {
                 return;
             }
-
+        
             if (!IsGridDesktopView(api))
             {
-                for (var current = hit; current != null; current = VisualTreeHelper.GetParent(current))
+                for (var current = hit; current != null;)
                 {
+                    // Securely obtain the parent
+                    DependencyObject parent = null;
+                    try
+                    {
+                        parent = VisualTreeHelper.GetParent(current);
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            if (current is FrameworkContentElement contentElement)
+                            {
+                                parent = contentElement.Parent as DependencyObject;
+                            }
+                            else
+                            {
+                                var prop = current.GetType().GetProperty("Parent");
+                                if (prop != null)
+                                {
+                                    parent = prop.GetValue(current, null) as DependencyObject;
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            break;
+                        }
+                    }
+        
+                    current = parent;
+                    if (current == null)
+                    {
+                        break;
+                    }
+        
                     if (ReferenceEquals(current, outerGameFe))
                     {
                         break;
                     }
-
+        
                     if (current is ButtonBase)
                     {
                         return;
                     }
                 }
             }
-
+        
             game = resolvedGame;
             anchor = outerGameFe;
         }
