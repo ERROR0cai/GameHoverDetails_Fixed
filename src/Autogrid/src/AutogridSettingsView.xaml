@@ -78,5 +78,9 @@
         <TextBlock Margin="0,4,0,0"
                    Foreground="{DynamicResource TextBrush}"
                    Text="{Binding ViewportAdjustPx, StringFormat={}{0} px}" />
+        <TextBlock Margin="0,16,0,0"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextBrush}"
+                   Text="If a theme still leaves space on the sides, nudge viewport adjust until the grid is flush." />
     </StackPanel>
 </UserControl>
