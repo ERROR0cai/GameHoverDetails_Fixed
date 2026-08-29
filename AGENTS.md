@@ -39,6 +39,7 @@ The package flow is intentionally **package-only**: it creates `.pext` and `.zip
 Under **`.cursor/rules/`** (apply when matching files are in context):
 
 - **`playnite-extensions.mdc`** — Playnite .NET / WPF / `extension.yaml` / settings / threading / reflection cautions.
+- **`playnite-settings-ui.mdc`** — Addon settings use Playnite stock controls; Autogrid `SettingsView` is the baseline (always apply).
 - **`playnite-ci-packaging.mdc`** — GitHub Actions on Windows, scripts / packaging hints.
 - **`playnite-extension-versioning.mdc`** — When to bump extension semver; ask user; release-only policy.
 - **`playnite-github-releases-per-extension.mdc`** — One GitHub Release per add-on; no combined umbrella releases; tag collision guidance.

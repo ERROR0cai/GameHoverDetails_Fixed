@@ -15,7 +15,7 @@ namespace GameHoverDetails
         private const int MaxShowDelayMs = 500;
         private const int MinFieldBlockSpacingDip = 4;
         private const int MaxFieldBlockSpacingDip = 36;
-        private const int DefaultHoverWidth = 220;
+        private const int DefaultHoverWidth = 188;
         private const int DefaultShowDelayMs = 30;
         private const int DefaultFieldBlockSpacingDip = 10;
         internal const int MinFieldColumnCount = 1;
@@ -23,11 +23,12 @@ namespace GameHoverDetails
         internal const int DefaultFieldColumnCount = 1;
         internal const int MinContentPaddingDip = 4;
         internal const int MaxContentPaddingDip = 32;
-        internal const int DefaultContentPaddingDip = 16;
+        internal const int DefaultContentPaddingDip = 12;
         private const int MinChromeOpacity = 0;
         private const int MaxChromeOpacity = 100;
         private const int DefaultChromeOpacity = 100;
-        internal const double DefaultBodyFontSize = 15;
+        internal const int FactoryChromeOpacity = 90;
+        internal const double DefaultBodyFontSize = 14;
         internal const double MinBodyFontSize = 9;
         internal const double MaxBodyFontSize = 20;
         internal const double DefaultTitleFontSize = 10;
@@ -36,10 +37,10 @@ namespace GameHoverDetails
         /// <summary>Line-height scale is locked to these sizes so changing factory defaults does not change leading.</summary>
         internal const double BodyLineHeightReferenceFontSize = 13;
         internal const double TitleLineHeightReferenceFontSize = 10.5;
-        internal const int DefaultIconChipSizeDip = 22;
+        internal const int DefaultIconChipSizeDip = 19;
         internal const int MinIconChipSizeDip = 8;
         internal const int MaxIconChipSizeDip = 40;
-        internal const int DefaultIconChipPaddingDip = 2;
+        internal const int DefaultIconChipPaddingDip = 8;
         private const int LegacyMissingFieldBlockSpacingDip = 11;
         private const int LegacyMissingContentPaddingDip = 14;
         private const double LegacyMissingBodyFontSize = 13;
@@ -65,14 +66,11 @@ namespace GameHoverDetails
             "TimePlayed",
             "LastPlayed",
             "Library",
-            "CompletionStatus"
+            "Developer"
         };
 
         public const string BackgroundStyleRegular = "Regular";
         public const string BackgroundStyleGameCover = "GameCover";
-
-        /// <summary>Factory hover uses game background at this opacity.</summary>
-        internal const int FanartFactoryOpacity = 75;
 
         /// <summary>Turning <c>Use game background</c> on always snaps opacity here.</summary>
         internal const int FanartDefaultOpacity = 50;
@@ -89,22 +87,22 @@ namespace GameHoverDetails
         private bool hoverDisabledInFullscreen = true;
         private bool hideFieldTitlesInHover;
         private bool showFieldInlineIconsInHover = true;
-        private bool hideIconChipBackground = true;
-        private bool hideFieldDividers = true;
+        private bool hideIconChipBackground;
+        private bool hideFieldDividers;
         private bool hidePanelBorder = true;
         private double hoverBodyFontSize = DefaultBodyFontSize;
         private double hoverTitleFontSize = DefaultTitleFontSize;
         private string hoverIconStyle = IconStyleHugeIcons;
         private int hoverIconChipSizeDip = DefaultIconChipSizeDip;
         private int hoverIconChipPaddingDip = DefaultIconChipPaddingDip;
-        private string hoverIconChipShape = IconChipShapeCircle;
+        private string hoverIconChipShape = IconChipShapeSoftRounded;
         private bool useThemeChrome;
-        private string hoverBackgroundStyle = BackgroundStyleGameCover;
+        private string hoverBackgroundStyle = BackgroundStyleRegular;
         private string hoverChromeBackgroundHex = HoverChromePalette.DefaultFillHex;
         private string hoverChromeBorderHex = HoverChromePalette.DefaultBorderHex;
         private string hoverChromeDividerHex = HoverChromePalette.DefaultDividerHex;
         private string hoverChromeIconBackgroundHex = HoverChromePalette.DefaultIconBackgroundHex;
-        private int hoverChromeBackgroundOpacity = FanartFactoryOpacity;
+        private int hoverChromeBackgroundOpacity = FactoryChromeOpacity;
         private List<string> selectedFieldKeys = new List<string>(FactoryDefaultSelectedKeys);
 
         [DontSerialize]
@@ -501,7 +499,7 @@ namespace GameHoverDetails
             HoverChromeBorderHex = HoverChromePalette.DefaultBorderHex;
             HoverChromeDividerHex = HoverChromePalette.DefaultDividerHex;
             HoverChromeIconBackgroundHex = HoverChromePalette.DefaultIconBackgroundHex;
-            HoverChromeBackgroundOpacity = DefaultChromeOpacity;
+            HoverChromeBackgroundOpacity = FactoryChromeOpacity;
         }
 
         private void UncheckThemeChromeIfUserEdited()

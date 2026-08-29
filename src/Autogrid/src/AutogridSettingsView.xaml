@@ -13,8 +13,9 @@
     <StackPanel Margin="16">
         <CheckBox Content="Enable Autogrid (Desktop grid view only)"
                   IsChecked="{Binding Enabled, Mode=TwoWay}" />
+        <Separator Margin="0,16,0,16" />
 
-        <Label Margin="0,16,0,4" Content="Sizing mode" />
+        <Label Margin="0,0,0,4" Content="Sizing mode" />
         <StackPanel Orientation="Horizontal">
             <RadioButton Content="Columns"
                          Margin="0,0,16,0"
@@ -22,8 +23,9 @@
             <RadioButton Content="Rows"
                          IsChecked="{Binding SizingMode, Converter={StaticResource RowsModeConverter}, Mode=TwoWay}" />
         </StackPanel>
+        <Separator Margin="0,16,0,16" />
 
-        <StackPanel Margin="0,12,0,0">
+        <StackPanel>
             <StackPanel.Style>
                 <Style TargetType="StackPanel">
                     <Setter Property="Visibility" Value="Visible" />
@@ -76,9 +78,5 @@
         <TextBlock Margin="0,4,0,0"
                    Foreground="{DynamicResource TextBrush}"
                    Text="{Binding ViewportAdjustPx, StringFormat={}{0} px}" />
-        <TextBlock Margin="0,20,0,0"
-                   TextWrapping="Wrap"
-                   Foreground="{DynamicResource TextBrush}"
-                   Text="When you resize the Playnite window, grid cover width adjusts automatically. Column mode keeps about this many tiles across the library area. Row mode keeps about this many visible rows; column count will vary. Use viewport adjust if a theme still leaves side gutters. If a Playnite update stops this from working, open an issue with your Playnite version." />
     </StackPanel>
 </UserControl>

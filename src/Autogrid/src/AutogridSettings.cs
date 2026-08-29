@@ -50,11 +50,35 @@ namespace Autogrid
             set => SetValue(ref viewportAdjustPx, ClampViewportAdjust(value));
         }
 
+        private bool hasSavedUserLayout;
+        public bool HasSavedUserLayout
+        {
+            get => hasSavedUserLayout;
+            set => SetValue(ref hasSavedUserLayout, value);
+        }
+
+        private double savedUserGridItemWidth;
+        public double SavedUserGridItemWidth
+        {
+            get => savedUserGridItemWidth;
+            set => SetValue(ref savedUserGridItemWidth, value);
+        }
+
+        private int savedUserGridItemSpacing = 8;
+        public int SavedUserGridItemSpacing
+        {
+            get => savedUserGridItemSpacing;
+            set => SetValue(ref savedUserGridItemSpacing, value);
+        }
+
         private bool enabledOriginal;
         private GridSizingMode sizingModeOriginal;
         private int targetColumnsOriginal;
         private int targetRowsOriginal;
         private int viewportAdjustPxOriginal;
+        private bool hasSavedUserLayoutOriginal;
+        private double savedUserGridItemWidthOriginal;
+        private int savedUserGridItemSpacingOriginal;
 
         public AutogridSettings()
         {
@@ -71,6 +95,9 @@ namespace Autogrid
                 TargetColumns = saved.TargetColumns;
                 TargetRows = saved.TargetRows;
                 ViewportAdjustPx = saved.ViewportAdjustPx;
+                HasSavedUserLayout = saved.HasSavedUserLayout;
+                SavedUserGridItemWidth = saved.SavedUserGridItemWidth;
+                SavedUserGridItemSpacing = saved.SavedUserGridItemSpacing;
             }
 
             TargetColumns = System.Math.Max(1, System.Math.Min(20, TargetColumns));
@@ -90,6 +117,9 @@ namespace Autogrid
             targetColumnsOriginal = TargetColumns;
             targetRowsOriginal = TargetRows;
             viewportAdjustPxOriginal = ViewportAdjustPx;
+            hasSavedUserLayoutOriginal = HasSavedUserLayout;
+            savedUserGridItemWidthOriginal = SavedUserGridItemWidth;
+            savedUserGridItemSpacingOriginal = SavedUserGridItemSpacing;
         }
 
         public void CancelEdit()
@@ -99,6 +129,9 @@ namespace Autogrid
             TargetColumns = targetColumnsOriginal;
             TargetRows = targetRowsOriginal;
             ViewportAdjustPx = viewportAdjustPxOriginal;
+            HasSavedUserLayout = hasSavedUserLayoutOriginal;
+            SavedUserGridItemWidth = savedUserGridItemWidthOriginal;
+            SavedUserGridItemSpacing = savedUserGridItemSpacingOriginal;
         }
 
         public void EndEdit()
@@ -107,6 +140,11 @@ namespace Autogrid
             TargetColumns = System.Math.Max(1, System.Math.Min(20, TargetColumns));
             TargetRows = System.Math.Max(1, System.Math.Min(10, TargetRows));
             plugin.SavePluginSettings(this);
+        }
+
+        internal void PersistPluginSettings()
+        {
+            plugin?.SavePluginSettings(this);
         }
 
         public bool VerifySettings(out List<string> errors)

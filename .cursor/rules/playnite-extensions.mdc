@@ -40,6 +40,7 @@ Official docs: [Introduction to Playnite extensions](https://playnite.link/docs/
 - Implement **`ISettings`** with **`BeginEdit`**, **`CancelEdit`**, **`EndEdit`**; persist via **`SavePluginSettings`** on the plugin instance.
 - Use **`VerifySettings`** for validation messages.
 - Settings **UserControl** returned from **`GetSettingsView`** should bind to the same settings object the plugin uses.
+- Settings chrome must use **Playnite stock controls** (Autogrid baseline). See **`playnite-settings-ui.mdc`**.
 
 ## Reflection and Playnite internals
 

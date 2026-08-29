@@ -34,7 +34,7 @@ namespace Autogrid
 
         internal const double MinGridItemWidth = 60;
         internal const double MaxGridItemWidth = 900;
-        internal const double SafetyPadding = 2;
+        internal const double SafetyPadding = 0;
 
         /// <summary>Approximate width of the narrow platform-icon sidebar strip (not the wide labeled sidebar).</summary>
         private const double IconSidebarWidthApprox = 80;
@@ -143,6 +143,62 @@ namespace Autogrid
             }
 
             prop.SetValue(appSettings, width, null);
+            return true;
+        }
+
+        public static bool TrySetGridItemSpacing(object appSettings, int spacing)
+        {
+            if (appSettings == null)
+            {
+                return false;
+            }
+
+            var prop = appSettings.GetType().GetProperty("GridItemSpacing", BindingFlags.Instance | BindingFlags.Public);
+            if (prop == null || !prop.CanWrite)
+            {
+                return false;
+            }
+
+            prop.SetValue(appSettings, spacing, null);
+            return true;
+        }
+
+        /// <summary>
+        /// Playnite sets ItemSpacingMargin to GridItemSpacing/2 on each side (integer divide).
+        /// </summary>
+        public static int SpacingToAxisMargin(int gridItemSpacing)
+        {
+            var half = Math.Max(0, gridItemSpacing) / 2;
+            return half + half;
+        }
+
+        /// <summary>
+        /// Column-mode width. Leftover pixels go into cover width (not spacing —
+        /// spacing bumps add left/right tile margin). A +1 px width is used only
+        /// when it still fits in the viewport.
+        /// </summary>
+        public static bool ComputeColumnLayout(
+            double viewportWidth,
+            int targetColumns,
+            int userGridItemSpacing,
+            out double gridItemWidth,
+            out int gridItemSpacing)
+        {
+            gridItemSpacing = userGridItemSpacing;
+            var margin = SpacingToAxisMargin(userGridItemSpacing);
+            gridItemWidth = ComputeTargetGridItemWidth(viewportWidth, targetColumns, margin);
+            if (gridItemWidth <= 0 || targetColumns < 1)
+            {
+                return gridItemWidth > 0;
+            }
+
+            var leftover = viewportWidth - targetColumns * (gridItemWidth + margin);
+            if (leftover >= targetColumns)
+            {
+                var extra = Math.Floor(leftover / targetColumns);
+                gridItemWidth = Math.Min(MaxGridItemWidth, gridItemWidth + extra);
+            }
+
             return true;
         }
 
@@ -273,7 +329,10 @@ namespace Autogrid
         }
 
         /// <summary>
-        /// Resolves usable library width and height: prefers ItemsPresenter under the games ScrollViewer, caps by scroll viewport, applies user adjust.
+        /// Resolves usable library width and height from the games ScrollViewer
+        /// viewport (available space). ItemsPresenter width is not used as the
+        /// wrap target — it follows the tiles and locks in side gutters.
+        /// Presenter MaxWidth / margin still constrain the measure.
         /// </summary>
         public static ViewportMetrics ResolveViewportMetrics(Window window, IPlayniteAPI api, int viewportAdjustPx)
         {
@@ -297,28 +356,31 @@ namespace Autogrid
                 result.PickedScrollViewer = picked;
             }
 
+            FrameworkElement presenter = null;
             if (picked != null)
             {
-                result.PanelWidth = GetMaxItemsPresenterWidthUnder(picked);
+                presenter = FindWidestItemsPresenterUnder(picked);
+                result.PanelWidth = presenter != null ? presenter.ActualWidth : 0;
             }
 
             double baseV;
-            if (result.PanelWidth > 150 && result.PanelWidth <= window.ActualWidth + 1)
+            if (result.ScrollWidth > 100)
             {
-                baseV = result.PanelWidth;
-            }
-            else if (result.ScrollWidth > 100)
-            {
-                baseV = Math.Max(result.ScrollWidth, expected);
+                baseV = result.ScrollWidth;
+                if (presenter != null)
+                {
+                    baseV -= presenter.Margin.Left + presenter.Margin.Right;
+                    if (!double.IsNaN(presenter.MaxWidth) &&
+                        !double.IsInfinity(presenter.MaxWidth) &&
+                        presenter.MaxWidth > 0)
+                    {
+                        baseV = Math.Min(baseV, presenter.MaxWidth);
+                    }
+                }
             }
             else
             {
                 baseV = expected;
-            }
-
-            if (result.ScrollWidth > 100)
-            {
-                baseV = Math.Min(baseV, result.ScrollWidth);
             }
 
             result.Viewport = Math.Max(100, baseV + viewportAdjustPx);
@@ -482,21 +544,23 @@ namespace Autogrid
             return false;
         }
 
-        private static double GetMaxItemsPresenterWidthUnder(ScrollViewer scrollViewer)
+        private static FrameworkElement FindWidestItemsPresenterUnder(ScrollViewer scrollViewer)
         {
             if (scrollViewer == null)
             {
-                return 0;
+                return null;
             }
 
-            var best = 0.0;
+            FrameworkElement best = null;
+            var bestWidth = 0.0;
             foreach (var d in EnumerateDescendants(scrollViewer))
             {
                 if (d is ItemsPresenter ip && ip.IsVisible && !double.IsNaN(ip.ActualWidth))
                 {
-                    if (ip.ActualWidth > best)
+                    if (ip.ActualWidth > bestWidth)
                     {
-                        best = ip.ActualWidth;
+                        bestWidth = ip.ActualWidth;
+                        best = ip;
                     }
                 }
             }

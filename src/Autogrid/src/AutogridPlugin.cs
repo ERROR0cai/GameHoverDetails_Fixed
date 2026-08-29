@@ -11,6 +11,7 @@ namespace Autogrid
     public class AutogridPlugin : GenericPlugin
     {
         private static readonly Guid PluginId = Guid.Parse("7F3E9B82-4D1C-4E8A-9F2B-6C5A891D0E2F");
+        private static readonly ILogger Logger = LogManager.GetLogger();
 
         private readonly AutogridSettings settings;
         private Window hookedWindow;
@@ -18,6 +19,7 @@ namespace Autogrid
         private DispatcherTimer saveSettingsTimer;
         private object pendingSaveAppSettings;
         private bool reflectionBroken;
+        private bool reflectionBrokenLogged;
         private bool handlersAttached;
         private bool startupApplyComplete;
         private int startupApplyAttemptsRemaining;
@@ -55,6 +57,7 @@ namespace Autogrid
         public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
         {
             settings.PropertyChanged -= OnSettingsPropertyChanged;
+            settings.PersistPluginSettings();
             FlushPendingAppSettingsSave();
             DetachWindowHooks();
         }
@@ -96,9 +99,9 @@ namespace Autogrid
                     {
                         ApplyAutogrid();
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        reflectionBroken = true;
+                        LatchReflectionBroken(ex);
                     }
                 }),
                 DispatcherPriority.Loaded);
@@ -123,9 +126,9 @@ namespace Autogrid
                     app.Activated += OnApplicationActivatedOnce;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore
+                Logger.Error(ex, "Autogrid failed to attach to the main window.");
             }
         }
 
@@ -139,9 +142,9 @@ namespace Autogrid
                     TryHookMainWindow(Application.Current.MainWindow);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore
+                Logger.Error(ex, "Autogrid failed on application activated.");
             }
         }
 
@@ -192,7 +195,7 @@ namespace Autogrid
 
         private void BeginStartupApply()
         {
-            if (reflectionBroken || !settings.Enabled)
+            if (reflectionBroken)
             {
                 return;
             }
@@ -204,7 +207,7 @@ namespace Autogrid
 
         private void TryApplyStartupNow()
         {
-            if (startupApplyComplete || reflectionBroken || !settings.Enabled)
+            if (startupApplyComplete || reflectionBroken)
             {
                 return;
             }
@@ -233,16 +236,16 @@ namespace Autogrid
             {
                 return ApplyAutogrid();
             }
-            catch
+            catch (Exception ex)
             {
-                reflectionBroken = true;
+                LatchReflectionBroken(ex);
                 return false;
             }
         }
 
         private void RequestDebouncedApply()
         {
-            if (reflectionBroken || !settings.Enabled)
+            if (reflectionBroken)
             {
                 return;
             }
@@ -278,17 +281,23 @@ namespace Autogrid
             {
                 ApplyAutogrid();
             }
-            catch
+            catch (Exception ex)
             {
-                reflectionBroken = true;
+                LatchReflectionBroken(ex);
             }
         }
 
         private bool ApplyAutogrid()
         {
-            if (!settings.Enabled || reflectionBroken)
+            if (reflectionBroken)
             {
                 return false;
+            }
+
+            if (!settings.Enabled)
+            {
+                RestoreUserCoverSize();
+                return true;
             }
 
             if (PlayniteApi.MainView.ActiveDesktopView != DesktopView.Grid)
@@ -308,14 +317,20 @@ namespace Autogrid
                 return false;
             }
 
-            if (!GridLayoutService.TryGetGridLayoutInputs(appSettings, out var spacing, out var currentWidth))
+            if (!GridLayoutService.TryGetGridLayoutInputs(appSettings, out var currentSpacing, out var currentWidth))
             {
-                reflectionBroken = true;
+                LatchReflectionBroken(null);
                 return false;
             }
 
+            CaptureUserLayoutIfNeeded(currentWidth, currentSpacing);
+
             var metrics = GridLayoutService.ResolveViewportMetrics(window, PlayniteApi, settings.ViewportAdjustPx);
-            double target;
+            double targetWidth;
+            var targetSpacing = settings.HasSavedUserLayout
+                ? settings.SavedUserGridItemSpacing
+                : currentSpacing;
+
             if (settings.SizingMode == GridSizingMode.Rows)
             {
                 if (metrics.PickedScrollViewer == null ||
@@ -324,8 +339,8 @@ namespace Autogrid
                     return false;
                 }
 
-                var verticalMargin = GridLayoutService.GetVerticalMarginPerTile(appSettings, spacing);
-                target = GridLayoutService.ComputeTargetGridItemWidthForRows(
+                var verticalMargin = GridLayoutService.SpacingToAxisMargin(targetSpacing);
+                targetWidth = GridLayoutService.ComputeTargetGridItemWidthForRows(
                     metrics.ViewportHeight,
                     settings.TargetRows,
                     verticalMargin,
@@ -334,31 +349,109 @@ namespace Autogrid
             }
             else
             {
-                var perTileMargin = GridLayoutService.GetHorizontalMarginPerTile(appSettings, spacing);
-                target = GridLayoutService.ComputeTargetGridItemWidth(
-                    metrics.Viewport,
-                    settings.TargetColumns,
-                    perTileMargin);
+                if (metrics.Viewport <= 0)
+                {
+                    return false;
+                }
+
+                if (!GridLayoutService.ComputeColumnLayout(
+                        metrics.Viewport,
+                        settings.TargetColumns,
+                        targetSpacing,
+                        out targetWidth,
+                        out targetSpacing))
+                {
+                    return false;
+                }
             }
 
-            if (target <= 0)
+            if (targetWidth <= 0)
             {
                 return false;
             }
 
-            if (Math.Abs(currentWidth - target) < 0.01)
+            var widthChanged = Math.Abs(currentWidth - targetWidth) >= 0.01;
+            var spacingChanged = currentSpacing != targetSpacing;
+            if (!widthChanged && !spacingChanged)
             {
                 return true;
             }
 
-            if (!GridLayoutService.TrySetGridItemWidth(appSettings, target))
+            if (spacingChanged && !GridLayoutService.TrySetGridItemSpacing(appSettings, targetSpacing))
             {
-                reflectionBroken = true;
+                LatchReflectionBroken(null);
+                return false;
+            }
+
+            if (widthChanged && !GridLayoutService.TrySetGridItemWidth(appSettings, targetWidth))
+            {
+                LatchReflectionBroken(null);
                 return false;
             }
 
             ScheduleSaveAppSettings(appSettings);
             return true;
+        }
+
+        private void CaptureUserLayoutIfNeeded(double currentWidth, int currentSpacing)
+        {
+            if (settings.HasSavedUserLayout)
+            {
+                return;
+            }
+
+            settings.HasSavedUserLayout = true;
+            settings.SavedUserGridItemWidth = currentWidth;
+            settings.SavedUserGridItemSpacing = currentSpacing;
+        }
+
+        private void RestoreUserCoverSize()
+        {
+            if (reflectionBroken || !settings.HasSavedUserLayout)
+            {
+                return;
+            }
+
+            var window = hookedWindow ?? Application.Current?.MainWindow;
+            var appSettings = window != null ? GridLayoutService.TryResolveAppSettings(window) : null;
+            if (appSettings == null)
+            {
+                return;
+            }
+
+            var widthOk = GridLayoutService.TrySetGridItemWidth(appSettings, settings.SavedUserGridItemWidth);
+            var spacingOk = GridLayoutService.TrySetGridItemSpacing(appSettings, settings.SavedUserGridItemSpacing);
+            if (!widthOk)
+            {
+                LatchReflectionBroken(null);
+                return;
+            }
+
+            if (!spacingOk)
+            {
+                Logger.Warn("Autogrid restored cover width but could not write GridItemSpacing.");
+            }
+
+            GridLayoutService.TrySaveAppSettings(appSettings);
+            CancelPendingAppSettingsSave();
+            settings.HasSavedUserLayout = false;
+        }
+
+        private void LatchReflectionBroken(Exception ex)
+        {
+            reflectionBroken = true;
+            if (!reflectionBrokenLogged)
+            {
+                reflectionBrokenLogged = true;
+                if (ex != null)
+                {
+                    Logger.Error(ex, "Autogrid stopped: Playnite settings reflection failed.");
+                }
+                else
+                {
+                    Logger.Error("Autogrid stopped: Playnite settings reflection failed.");
+                }
+            }
         }
 
         private void ScheduleSaveAppSettings(object appSettings)
@@ -397,6 +490,12 @@ namespace Autogrid
             {
                 GridLayoutService.TrySaveAppSettings(appSettings);
             }
+        }
+
+        private void CancelPendingAppSettingsSave()
+        {
+            saveSettingsTimer?.Stop();
+            pendingSaveAppSettings = null;
         }
 
         private void DetachWindowHooks()

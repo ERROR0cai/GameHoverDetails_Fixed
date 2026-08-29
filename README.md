@@ -2,41 +2,29 @@
 
 Open-source **Playnite** add-ons in one place: small **generic plugins** that tweak the desktop library—layout, information at a glance, and other quality-of-life improvements. Each extension is built and published on its own; pick the ones you want.
 
-## Tips and donations
+## Support this work
 
-I create Playnite extensions and themes for the love of it—always free for the community.
+These add-ons are **free** and stay that way. If they make your library nicer and you want to help me keep shipping updates, the best would be to leave a suggestion or feedback via issues page.
 
-While donations aren't expected, they're super appreciated! If you've found my work helpful and want to help out:
+$$$ support is highly welcome too 🙂
 
-Support this work on [Ko-fi](https://ko-fi.com/danitesler).
+**[Support this work on Ko-fi →](https://ko-fi.com/danitesler)**
 
 ## Add-ons
 
-Each add-on has its own **GitHub Release** and **`.pext`** installer. Browse [**Releases**](https://github.com/danitesler/playnite-extensions/releases), open the release for the extension you want, and download the attached **`.pext`**.
+Each add-on has its own **GitHub Release** and `.pext` installer. Browse **[Releases](https://github.com/danitesler/playnite-extensions/releases)**, open the release for the extension you want, and download the attached `.pext`. You can also find and install them from **Add-ons** inside Playnite.
 
-| Icon | Name | Description | Releases | Source |
-| --- | --- | --- | --- | --- |
-| <img src="https://raw.githubusercontent.com/danitesler/playnite-extensions/main/src/Autogrid/info/icon.png" alt="Autogrid" width="80" height="80" /> | **Autogrid** (`autogrid`) | Keeps the desktop **grid** near a target column count as you resize the window. | [Releases](https://github.com/danitesler/playnite-extensions/releases) | [Source](https://github.com/danitesler/playnite-extensions/tree/main/src/Autogrid) |
-| <img src="https://raw.githubusercontent.com/danitesler/playnite-extensions/main/src/GameHoverDetails/info/icon.png" alt="GameHoverDetails" width="80" height="80" /> | **GameHoverDetails** (`gamehoverdetails`) | **Mouse Hover** brief info popup beside library tiles with quick details. | [Releases](https://github.com/danitesler/playnite-extensions/releases) | [Source](https://github.com/danitesler/playnite-extensions/tree/main/src/GameHoverDetails) |
+| Icon | Name | Description |
+| --- | --- | --- |
+| <img src="https://raw.githubusercontent.com/danitesler/playnite-extensions/main/src/Autogrid/info/icon.png" alt="Autogrid" width="80" height="80" /> | **Autogrid** (`autogrid`) | Keeps the Desktop **grid** at a target column (or row) count as you resize Playnite.<br><br>• Scales cover size automatically when the window changes<br>• Fills leftover gutters so the grid stays even<br>• Only runs in Desktop grid view; disable it to restore your previous size |
+| <img src="https://raw.githubusercontent.com/danitesler/playnite-extensions/main/src/GameHoverDetails/info/icon.png" alt="GameHoverDetails" width="80" height="80" /> | **GameHoverDetails** (`gamehoverdetails`) | A hover popup beside library tiles with the game details you care about.<br><br>• Choose up to five fields — play time, last played, library, developer, and more<br>• Match your Playnite theme, pick your own colors, or use the game’s background art<br>• Stays out of the way — it hides when you leave the tile or move onto the popup |
 
 ## Installation
 
-1. On [**Releases**](https://github.com/danitesler/playnite-extensions/releases), open the release for the add-on you want and download its **`.pext`** file.
-2. Open the file in **Windows** (double-click or choose **Open**).
-3. Click **Install** when Playnite prompts you.
-4. Restart Playnite.
-
-## Configuration
-
-Open **Main Menu → Add-ons → Extension settings → Generic**, then choose the extension below.
-
-### Autogrid
-
-Tune **target columns**, **viewport adjust** (if your theme leaves side gutters), and enable/disable the behavior. Click **Save**.
-
-### GameHoverDetails
-
-Set **appear delay**, **width**, and up to **five** detail fields (order with **↑** / **↓**; add/remove fields as needed). The popup is meant for a quick read while moving over tiles—it dismisses when you move the pointer onto the panel. Click **Save**.
+1. **Inside Playnite:** open **Add-ons** from the main menu, browse or search for the extension, and install it from there.
+2. **Or from GitHub:** on **[Releases](https://github.com/danitesler/playnite-extensions/releases)**, open the release for the add-on you want, download its `.pext` file, and open it in **Windows** (double-click or choose **Open**).
+3. Click **Install** when Playnite prompts you, then restart Playnite.
+4. After it’s installed, you’ll find it under **Add-ons → Extension settings → Generic** — pick the add-on there to turn it on and change its options.
 
 ## Questions, suggestions, and issues
 
