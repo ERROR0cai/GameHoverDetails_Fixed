@@ -280,6 +280,7 @@ namespace GameHoverDetails
                 e.PropertyName == nameof(GameHoverDetailsSettings.HideFieldDividers) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HidePanelBorder) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldBlockSpacingDip) ||
+                e.PropertyName == nameof(GameHoverDetailsSettings.HideEmptyFields) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverFieldColumnCount) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverContentPaddingDip) ||
                 e.PropertyName == nameof(GameHoverDetailsSettings.HoverWidth) ||

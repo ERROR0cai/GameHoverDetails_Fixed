@@ -58,6 +58,7 @@ namespace GameHoverDetails
             nameof(GameHoverDetailsSettings.HideFieldDividers),
             nameof(GameHoverDetailsSettings.HidePanelBorder),
             nameof(GameHoverDetailsSettings.HoverBodyFontSize),
+            nameof(GameHoverDetailsSettings.HideEmptyFields),
             nameof(GameHoverDetailsSettings.HoverTitleFontSize),
             nameof(GameHoverDetailsSettings.HoverIconStyle),
             nameof(GameHoverDetailsSettings.HoverIconChipSizeDip),

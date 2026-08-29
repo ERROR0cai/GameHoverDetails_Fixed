@@ -77,12 +77,40 @@ namespace GameHoverDetails
                 return;
             }
 
+            // Filter out empty fields if HideEmptyFields is enabled
+            var hideEmpty = settings.HideEmptyFields;
+
             var onlyIconSelected = keys.Count == 1 && keys[0] == "Icon";
             var columns = FieldColumnCount(settings);
-            if (columns <= 1)
+             if (columns <= 1)
             {
                 foreach (var key in keys)
                 {
+                    // If HideEmptyFields is enabled, skip fields that are empty
+                    if (settings.HideEmptyFields)
+                    {
+                        var valueText = source.FormatValue != null ? source.FormatValue(key) : null;
+                        var isEmpty = string.IsNullOrEmpty(valueText) ||
+                                       string.IsNullOrWhiteSpace(valueText) ||
+                                       valueText == HoverLoc.Empty;
+                        if (isEmpty)
+                        {
+                            // Skip art fields without images
+                            if (HoverFieldCatalog.IsGameArtImageField(key))
+                            {
+                                var art = source.TryGetGameArt != null ? source.TryGetGameArt(key) : null;
+                                if (art == null)
+                                {
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                continue;
+                            }
+                        }
+                    }
+
                     AppendKeyedField(
                         target,
                         settings,
@@ -145,6 +173,32 @@ namespace GameHoverDetails
                 if (cell == null)
                 {
                     continue;
+                }
+
+                // If HideEmptyFields is enabled, skip building cells that would be empty
+                if (settings.HideEmptyFields)
+                {
+                    var valueText = source.FormatValue != null ? source.FormatValue(key) : null;
+                    // 检查是否为空值：null、空字符串、纯空白、或等于 HoverLoc.Empty（"—"）
+                    var isEmpty = string.IsNullOrEmpty(valueText) ||
+                                   string.IsNullOrWhiteSpace(valueText) ||
+                                   valueText == HoverLoc.Empty;
+                    if (isEmpty)
+                    {
+                        // Also skip art fields without images
+                        if (HoverFieldCatalog.IsGameArtImageField(key))
+                        {
+                            var art = source.TryGetGameArt != null ? source.TryGetGameArt(key) : null;
+                            if (art == null)
+                            {
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
                 }
 
                 pending.Add(cell);

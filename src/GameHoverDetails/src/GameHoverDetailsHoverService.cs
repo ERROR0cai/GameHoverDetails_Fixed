@@ -799,6 +799,8 @@ namespace GameHoverDetails
                 + "\x1e" + (settings.HideFieldDividers ? "1" : "0")
                 + "\x1e" + (settings.HidePanelBorder ? "1" : "0")
                 + "\x1e" + settings.HoverFieldBlockSpacingDip.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + "\x1e" + (settings.HideEmptyFields ? "1" : "0")
+                + "\x1e" + settings.HoverFieldBlockSpacingDip.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 + "\x1e" + settings.HoverFieldColumnCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 + "\x1e" + settings.HoverContentPaddingDip.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 + "\x1e" + settings.HoverBodyFontSize.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)

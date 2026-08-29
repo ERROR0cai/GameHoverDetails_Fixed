@@ -461,6 +461,25 @@
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
+                <!-- Added: Hide empty fields -->
+                <TabItem Header="{DynamicResource LOCGameHoverDetails_Settings_TabHideEmpty}">
+                    <ScrollViewer Style="{StaticResource SettingsTabScrollViewer}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SettingsTabIntro}"
+                                    Text="{DynamicResource LOCGameHoverDetails_Settings_HideEmptyFieldsDescription}" />
+                            <CheckBox Style="{StaticResource SettingsParentCheckBox}"
+                                    Margin="0"
+                                    Content="{DynamicResource LOCGameHoverDetails_Settings_HideEmptyFields}"
+                                    IsChecked="{Binding HideEmptyFields, Mode=TwoWay}" />
+                            <TextBlock Margin="0,16,0,0"
+                                    Foreground="{DynamicResource TextBrush}"
+                                    Opacity="0.6"
+                                    TextWrapping="Wrap"
+                                    FontSize="12"
+                                    Text="{DynamicResource LOCGameHoverDetails_Settings_HideEmptyFieldsHint}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
                 <TabItem Header="{DynamicResource LOCGameHoverDetails_Settings_TabAppearance}">
                     <ScrollViewer Style="{StaticResource SettingsTabScrollViewer}">
                         <StackPanel>

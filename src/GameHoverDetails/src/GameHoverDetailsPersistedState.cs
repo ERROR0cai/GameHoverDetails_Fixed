@@ -28,6 +28,8 @@ namespace GameHoverDetails
         public bool? HidePanelBorder { get; set; }
         /// <summary>Null in legacy JSON — treated as 13.</summary>
         public double? HoverBodyFontSize { get; set; }
+        /// <summary>When true, fields with no value are hidden. Null in legacy — treated as false (off).</summary>
+        public bool? HideEmptyFields { get; set; }
         /// <summary>Null in legacy JSON — treated as 10.5.</summary>
         public double? HoverTitleFontSize { get; set; }
         /// <summary>Null in legacy JSON — treated as Unicons. Values: Phosphor, Unicons, HugeIcons.</summary>
