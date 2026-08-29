@@ -535,16 +535,55 @@ namespace GameHoverDetails
 
             Game resolvedGame = null;
             FrameworkElement outerGameFe = null;
-            for (var current = hit; current != null; current = VisualTreeHelper.GetParent(current))
+
+            // Use safe parent traversal to skip non-visual types such as Hyperlink.
+            for (var current = hit; current != null;)
             {
+                // Skip Hyperlink (it's not Visual, GetParent will throw an exception)
+                if (current is Hyperlink)
+                {
+                    // Try to get the parent of the Hyperlink (via the Parent property).
+                    var hyperlink = current as Hyperlink;
+                    var parent = hyperlink?.Parent;
+                    if (parent is DependencyObject depParent)
+                    {
+                        current = depParent;
+                        continue;
+                    }
+                    // If Parent is not a DependencyObject, try to get Next or Previous (inline Hyperlink).
+                    var inlineParent = hyperlink?.NextInline?.Parent ?? hyperlink?.PreviousInline?.Parent;
+                    if (inlineParent is DependencyObject inlineDepParent)
+                    {
+                        current = inlineDepParent;
+                        continue;
+                    }
+                    break;
+                }
+
                 if (!(current is FrameworkElement fe))
                 {
+                    try
+                    {
+                        current = VisualTreeHelper.GetParent(current);
+                    }
+                    catch
+                    {
+                        break;
+                    }
                     continue;
                 }
 
                 var g = TryGetGameFromDataContext(fe.DataContext);
                 if (g == null)
                 {
+                    try
+                    {
+                        current = VisualTreeHelper.GetParent(current);
+                    }
+                    catch
+                    {
+                        break;
+                    }
                     continue;
                 }
 
@@ -561,6 +600,15 @@ namespace GameHoverDetails
                 {
                     break;
                 }
+
+                try
+                {
+                    current = VisualTreeHelper.GetParent(current);
+                }
+                catch
+                {
+                    break;
+                }
             }
 
             if (resolvedGame == null || outerGameFe == null)
@@ -570,8 +618,21 @@ namespace GameHoverDetails
 
             if (!IsGridDesktopView(api))
             {
-                for (var current = hit; current != null; current = VisualTreeHelper.GetParent(current))
+                for (var current = hit; current != null;)
                 {
+                    // Skip Hyperlink
+                    if (current is Hyperlink)
+                    {
+                        var hyperlink = current as Hyperlink;
+                        var parent = hyperlink?.Parent;
+                        if (parent is DependencyObject depParent)
+                        {
+                            current = depParent;
+                            continue;
+                        }
+                        break;
+                    }
+
                     if (ReferenceEquals(current, outerGameFe))
                     {
                         break;
@@ -580,6 +641,15 @@ namespace GameHoverDetails
                     if (current is ButtonBase)
                     {
                         return;
+                    }
+
+                    try
+                    {
+                        current = VisualTreeHelper.GetParent(current);
+                    }
+                    catch
+                    {
+                        break;
                     }
                 }
             }
