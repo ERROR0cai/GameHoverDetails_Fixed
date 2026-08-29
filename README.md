@@ -17,7 +17,7 @@ Each add-on has its own **GitHub Release** and `.pext` installer. Browse **[Rele
 | Icon | Name | Description |
 | --- | --- | --- |
 | <img src="https://raw.githubusercontent.com/danitesler/playnite-extensions/main/src/Autogrid/info/icon.png" alt="Autogrid" width="80" height="80" /> | **Autogrid** (`autogrid`) | Keeps the Desktop **grid** at a target column (or row) count as you resize Playnite.<br><br>• Scales cover size automatically when the window changes<br>• Fills leftover gutters so the grid stays even |
-| <img src="https://raw.githubusercontent.com/danitesler/playnite-extensions/main/src/GameHoverDetails/info/icon.png" alt="GameHoverDetails" width="80" height="80" /> | **GameHoverDetails** (`gamehoverdetails`) | A hover popup beside library tiles with the game details you care about.<br><br>• Choose up to five fields — play time, last played, library, developer, and more<br>• Match your Playnite theme, pick your own colors, or use the game’s background art |
+| <img src="https://raw.githubusercontent.com/danitesler/playnite-extensions/main/src/GameHoverDetails/info/icon.png" alt="GameHoverDetails" width="80" height="80" /> | **GameHoverDetails** (`gamehoverdetails`) | A hover popup beside library tiles with the game details you care about.<br><br>• Choose any amoun of fields to display — play time, last played, library, developer, and more<br>• Match your Playnite theme, pick your own colors, or use the game’s background art |
 
 ## Installation
 
