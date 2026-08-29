@@ -82,7 +82,7 @@ namespace GameHoverDetails
 
             var onlyIconSelected = keys.Count == 1 && keys[0] == "Icon";
             var columns = FieldColumnCount(settings);
-             if (columns <= 1)
+            if (columns <= 1)
             {
                 foreach (var key in keys)
                 {
